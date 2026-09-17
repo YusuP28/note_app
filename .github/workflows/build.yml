@@ -23,15 +23,20 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
+          flutter-version: '3.24.5'
           channel: 'stable'
           cache: true
 
+      - name: Verify Android folder exists
+        run: |
+          if [ ! -d "android" ]; then
+            echo "❌ Folder android/ tidak ditemukan!"
+            exit 1
+          fi
+          echo "✅ Folder android/ ditemukan"
+
       - name: Get dependencies
         run: flutter pub get
-
-      - name: Create Android platform
-        run: flutter create --platforms=android --org com.yusup28 --project-name note_app .
 
       - name: Build APK (debug)
         if: "!startsWith(github.ref, 'refs/tags/v')"

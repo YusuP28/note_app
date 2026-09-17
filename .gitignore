@@ -25,3 +25,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Logs lokal
+logs/
+full_log.txt
