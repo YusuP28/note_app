@@ -2,14 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../models/note.dart';
 import '../services/database_service.dart';
-import '../services/notification_service.dart';
+import '../services/alarm_service.dart';
 import 'settings_provider.dart';
 
 enum NoteFilter { all, pinned, archived, trashed }
 
 class NoteProvider extends ChangeNotifier {
   final DatabaseService _db = DatabaseService();
-  final NotificationService _notif = NotificationService();
+  final AlarmService _alarm = AlarmService();
   final _uuid = const Uuid();
 
   List<Note> _notes = [];
@@ -208,10 +208,10 @@ class NoteProvider extends ChangeNotifier {
 
     // Schedule notif SETELAH update (biar indicator & notif sinkron)
     if (when == null) {
-      await _notif.cancel(note.id);
+      await _alarm.cancel(note.id);
       debugPrint('Reminder cleared for ${note.id}');
     } else {
-      await _notif.schedule(
+      await _alarm.schedule(
         noteId: note.id,
         title: note.title.isEmpty ? 'Pengingat Catatan' : note.title,
         body: note.content.isEmpty
@@ -239,7 +239,7 @@ class NoteProvider extends ChangeNotifier {
     note.isTrashed = true;
     note.trashedAt = DateTime.now();
     if (note.reminderAt != null) {
-      await _notif.cancel(note.id);
+      await _alarm.cancel(note.id);
     }
     await updateNote(note);
   }
@@ -251,7 +251,7 @@ class NoteProvider extends ChangeNotifier {
   }
 
   Future<void> deletePermanently(String id) async {
-    await _notif.cancel(id);
+    await _alarm.cancel(id);
     final db = await _db.database;
     await db.delete('notes', where: 'id = ?', whereArgs: [id]);
     _notes.removeWhere((n) => n.id == id);
@@ -263,7 +263,7 @@ class NoteProvider extends ChangeNotifier {
     final db = await _db.database;
     final ids = _notes.where((n) => n.isTrashed).map((n) => n.id).toList();
     for (final id in ids) {
-      await _notif.cancel(id);
+      await _alarm.cancel(id);
       await db.delete('notes', where: 'id = ?', whereArgs: [id]);
     }
     _notes.removeWhere((n) => n.isTrashed);

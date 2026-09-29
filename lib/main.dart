@@ -9,6 +9,7 @@ import 'providers/settings_provider.dart';
 import 'screens/notes/home_screen.dart';
 import 'services/migration_service.dart';
 import 'services/backup_service.dart';
+import 'services/alarm_service.dart';
 import 'services/notification_service.dart';
 import 'themes/app_theme.dart';
 import 'utils/locale_init.dart';

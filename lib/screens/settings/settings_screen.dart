@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../providers/note_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/backup_service.dart';
+import '../../services/alarm_service.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -115,6 +116,20 @@ class SettingsScreen extends StatelessWidget {
             onTap: () => _purge(context),
           ),
           const Divider(),
+          const _Section('Notifikasi'),
+          ListTile(
+            leading: const Icon(Icons.notifications_active_outlined),
+            title: const Text('Test Notifikasi'),
+            subtitle: const Text('Kirim notif sekarang untuk cek fungsi'),
+            onTap: () => _testNotif(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.alarm_on_outlined),
+            title: const Text('Izin Exact Alarm'),
+            subtitle: const Text('Izinkan notif tepat waktu (Android 12+)'),
+            onTap: () => _requestExact(context),
+          ),
+          const Divider(),
           const _Section('Tentang'),
           const ListTile(
             leading: Icon(Icons.info_outline),
@@ -123,6 +138,32 @@ class SettingsScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _testNotif(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await AlarmService().testNow(
+      title: 'Catatanku',
+      body: 'Notifikasi berfungsi! 🎉',
+    );
+    messenger.showSnackBar(
+      SnackBar(content: Text(ok ? 'Notif terkirim' : 'Gagal kirim notif')),
+    );
+  }
+
+  Future<void> _requestExact(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final can = await AlarmService().canScheduleExact();
+    if (can) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Izin exact alarm sudah aktif')),
+      );
+      return;
+    }
+    await AlarmService().requestExactPermission();
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Aktifkan izin di halaman Settings')),
     );
   }
 
