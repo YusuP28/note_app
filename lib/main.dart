@@ -5,15 +5,18 @@ import 'providers/note_provider.dart';
 import 'providers/notebook_provider.dart';
 import 'providers/tag_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/settings_provider.dart';
 import 'screens/notes/home_screen.dart';
 import 'services/migration_service.dart';
 import 'services/backup_service.dart';
+import 'services/notification_service.dart';
 import 'themes/app_theme.dart';
 import 'utils/locale_init.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initLocale();
+  await NotificationService().init();
   await MigrationService().migrateIfNeeded();
   await BackupService().autoBackup();
   runApp(const NoteApp());
@@ -27,6 +30,7 @@ class NoteApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()..load()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()..load()),
         ChangeNotifierProvider(create: (_) => NoteProvider()),
         ChangeNotifierProvider(create: (_) => NotebookProvider()),
         ChangeNotifierProvider(create: (_) => TagProvider()),

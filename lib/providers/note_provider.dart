@@ -2,11 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../models/note.dart';
 import '../services/database_service.dart';
+import '../services/notification_service.dart';
+import 'settings_provider.dart';
 
 enum NoteFilter { all, pinned, archived, trashed }
 
 class NoteProvider extends ChangeNotifier {
   final DatabaseService _db = DatabaseService();
+  final NotificationService _notif = NotificationService();
   final _uuid = const Uuid();
 
   List<Note> _notes = [];
@@ -17,6 +20,7 @@ class NoteProvider extends ChangeNotifier {
   String _query = '';
   bool _loading = false;
   String? _error;
+  SortBy _sortBy = SortBy.updatedDesc;
 
   List<Note> get notes => List.unmodifiable(_filtered);
   NoteFilter get filter => _filter;
@@ -25,6 +29,13 @@ class NoteProvider extends ChangeNotifier {
   String get query => _query;
   bool get loading => _loading;
   String? get error => _error;
+  SortBy get sortBy => _sortBy;
+
+  void setSortBy(SortBy s) {
+    _sortBy = s;
+    _applyFilter();
+    notifyListeners();
+  }
 
   Future<void> load() async {
     _loading = true;
@@ -32,8 +43,7 @@ class NoteProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final db = await _db.database;
-      final rows = await db.query('notes',
-          orderBy: 'is_pinned DESC, updated_at DESC');
+      final rows = await db.query('notes');
       _notes = [];
       for (final r in rows) {
         final tagRows = await db.query('note_tags',
@@ -99,7 +109,7 @@ class NoteProvider extends ChangeNotifier {
   }
 
   void _applyFilter() {
-    _filtered = _notes.where((n) {
+    final list = _notes.where((n) {
       switch (_filter) {
         case NoteFilter.all:
           if (n.isTrashed || n.isArchived) return false;
@@ -118,6 +128,38 @@ class NoteProvider extends ChangeNotifier {
       if (_tagIdFilter != null && !n.tagIds.contains(_tagIdFilter)) return false;
       return true;
     }).toList();
+
+    _sortList(list);
+    _filtered = list;
+  }
+
+  void _sortList(List<Note> list) {
+    // pinned selalu di atas untuk filter all & pinned
+    if (_filter == NoteFilter.all || _filter == NoteFilter.pinned) {
+      list.sort((a, b) {
+        if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
+        return _cmp(a, b);
+      });
+    } else {
+      list.sort(_cmp);
+    }
+  }
+
+  int _cmp(Note a, Note b) {
+    switch (_sortBy) {
+      case SortBy.updatedDesc:
+        return b.updatedAt.compareTo(a.updatedAt);
+      case SortBy.updatedAsc:
+        return a.updatedAt.compareTo(b.updatedAt);
+      case SortBy.createdDesc:
+        return b.createdAt.compareTo(a.createdAt);
+      case SortBy.createdAsc:
+        return a.createdAt.compareTo(b.createdAt);
+      case SortBy.titleAsc:
+        return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+      case SortBy.titleDesc:
+        return b.title.toLowerCase().compareTo(a.title.toLowerCase());
+    }
   }
 
   Future<Note> addNote({String title = '', String content = '', String? notebookId}) async {
@@ -158,6 +200,26 @@ class NoteProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setReminder(Note note, DateTime? when) async {
+    note.reminderAt = when;
+    await updateNote(note);
+
+    if (when == null) {
+      await _notif.cancel(note.id);
+    } else {
+      await _notif.schedule(
+        noteId: note.id,
+        title: note.title.isEmpty ? 'Pengingat Catatan' : note.title,
+        body: note.content.isEmpty
+            ? 'Waktunya buka catatan ini'
+            : (note.content.length > 80
+                ? '${note.content.substring(0, 80)}...'
+                : note.content),
+        when: when,
+      );
+    }
+  }
+
   Future<void> togglePin(Note note) async {
     note.isPinned = !note.isPinned;
     await updateNote(note);
@@ -171,6 +233,9 @@ class NoteProvider extends ChangeNotifier {
   Future<void> trash(Note note) async {
     note.isTrashed = true;
     note.trashedAt = DateTime.now();
+    if (note.reminderAt != null) {
+      await _notif.cancel(note.id);
+    }
     await updateNote(note);
   }
 
@@ -181,6 +246,7 @@ class NoteProvider extends ChangeNotifier {
   }
 
   Future<void> deletePermanently(String id) async {
+    await _notif.cancel(id);
     final db = await _db.database;
     await db.delete('notes', where: 'id = ?', whereArgs: [id]);
     _notes.removeWhere((n) => n.id == id);
@@ -192,6 +258,7 @@ class NoteProvider extends ChangeNotifier {
     final db = await _db.database;
     final ids = _notes.where((n) => n.isTrashed).map((n) => n.id).toList();
     for (final id in ids) {
+      await _notif.cancel(id);
       await db.delete('notes', where: 'id = ?', whereArgs: [id]);
     }
     _notes.removeWhere((n) => n.isTrashed);
