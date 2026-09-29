@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -9,7 +10,7 @@ class DatabaseService {
 
   static Database? _db;
   static const int _version = 1;
-  static const String _dbName = 'note_app.db';
+  static const String _dbName = 'note_app_v2.db'; // ganti nama biar gak bentrok v1
 
   Future<Database> get database async {
     if (_db != null) return _db!;
@@ -20,6 +21,7 @@ class DatabaseService {
   Future<Database> _initDb() async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, _dbName);
+    debugPrint('DB path: $path');
     return openDatabase(
       path,
       version: _version,
@@ -32,7 +34,6 @@ class DatabaseService {
   }
 
   Future<void> _onCreate(Database db, int v) async {
-    // NOTEBOOKS
     await db.execute('''
       CREATE TABLE notebooks (
         id TEXT PRIMARY KEY,
@@ -48,7 +49,6 @@ class DatabaseService {
     ''');
     await db.execute('CREATE INDEX idx_notebooks_parent ON notebooks(parent_id)');
 
-    // TAGS
     await db.execute('''
       CREATE TABLE tags (
         id TEXT PRIMARY KEY,
@@ -59,7 +59,6 @@ class DatabaseService {
     ''');
     await db.execute('CREATE INDEX idx_tags_name ON tags(name)');
 
-    // NOTES
     await db.execute('''
       CREATE TABLE notes (
         id TEXT PRIMARY KEY,
@@ -79,10 +78,10 @@ class DatabaseService {
       )
     ''');
     await db.execute('CREATE INDEX idx_notes_notebook ON notes(notebook_id)');
-    await db.execute('CREATE INDEX idx_notes_flags ON notes(is_pinned, is_archived, is_trashed)');
+    await db.execute(
+        'CREATE INDEX idx_notes_flags ON notes(is_pinned, is_archived, is_trashed)');
     await db.execute('CREATE INDEX idx_notes_updated ON notes(updated_at DESC)');
 
-    // NOTE-TAGS (many-to-many)
     await db.execute('''
       CREATE TABLE note_tags (
         note_id TEXT NOT NULL,
@@ -94,14 +93,12 @@ class DatabaseService {
     ''');
     await db.execute('CREATE INDEX idx_note_tags_tag ON note_tags(tag_id)');
 
-    // FTS5 untuk full-text search
     await db.execute('''
       CREATE VIRTUAL TABLE notes_fts USING fts5(
         title, content, note_id UNINDEXED, tokenize='unicode61'
       )
     ''');
 
-    // TRIGGER sinkronisasi FTS
     await db.execute('''
       CREATE TRIGGER notes_ai AFTER INSERT ON notes BEGIN
         INSERT INTO notes_fts(title, content, note_id)
@@ -119,11 +116,10 @@ class DatabaseService {
         WHERE note_id = new.id;
       END
     ''');
+    debugPrint('DB created OK');
   }
 
-  Future<void> _onUpgrade(Database db, int oldV, int newV) async {
-    // placeholder migrasi versi berikutnya
-  }
+  Future<void> _onUpgrade(Database db, int oldV, int newV) async {}
 
   Future<void> close() async {
     await _db?.close();

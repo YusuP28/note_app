@@ -30,10 +30,13 @@ class _HomeScreenState extends State<HomeScreen> {
     super.didChangeDependencies();
     if (!_initialized) {
       _initialized = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.read<NoteProvider>().load();
-        context.read<NotebookProvider>().load();
-        context.read<TagProvider>().load();
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await context.read<NoteProvider>().load();
+        if (!mounted) return;
+        await context.read<NotebookProvider>().load();
+        if (!mounted) return;
+        await context.read<TagProvider>().load();
       });
     }
   }
@@ -118,24 +121,44 @@ class _HomeScreenState extends State<HomeScreen> {
       drawer: _buildDrawer(context, p),
       body: p.loading
           ? const Center(child: CircularProgressIndicator())
-          : p.notes.isEmpty
-              ? const EmptyState(
-                  icon: Icons.note_outlined,
-                  title: 'Belum ada catatan',
-                  subtitle: 'Tap tombol + untuk mulai',
+          : p.error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 56, color: Colors.red),
+                        const SizedBox(height: 12),
+                        Text(p.error!, textAlign: TextAlign.center),
+                        const SizedBox(height: 16),
+                        FilledButton(
+                          onPressed: () => p.load(),
+                          child: const Text('Coba Lagi'),
+                        ),
+                      ],
+                    ),
+                  ),
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  itemCount: p.notes.length,
-                  itemBuilder: (_, i) {
-                    final n = p.notes[i];
-                    return NoteCard(
-                      note: n,
-                      onTap: () => _openNote(n),
-                      onLongPress: () => _confirmDelete(n),
-                    );
-                  },
-                ),
+              : p.notes.isEmpty
+                  ? const EmptyState(
+                      icon: Icons.note_outlined,
+                      title: 'Belum ada catatan',
+                      subtitle: 'Tap tombol + untuk mulai',
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      itemCount: p.notes.length,
+                      itemBuilder: (_, i) {
+                        final n = p.notes[i];
+                        return NoteCard(
+                          note: n,
+                          onTap: () => _openNote(n),
+                          onLongPress: () => _confirmDelete(n),
+                        );
+                      },
+                    ),
       floatingActionButton: p.filter == NoteFilter.trashed ||
               p.filter == NoteFilter.archived
           ? null

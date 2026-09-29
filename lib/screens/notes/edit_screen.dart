@@ -20,17 +20,14 @@ class _EditScreenState extends State<EditScreen> {
   late TextEditingController _contentCtrl;
   late Note _working;
   bool _isNew = false;
+  bool _saving = false;
 
   @override
   void initState() {
     super.initState();
     _isNew = widget.note == null;
     _working = widget.note ??
-        Note(
-          id: '',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
+        Note(id: '', createdAt: DateTime.now(), updatedAt: DateTime.now());
     _titleCtrl = TextEditingController(text: _working.title);
     _contentCtrl = TextEditingController(text: _working.content);
   }
@@ -43,25 +40,42 @@ class _EditScreenState extends State<EditScreen> {
   }
 
   Future<void> _save() async {
-    final p = context.read<NoteProvider>();
-    _working.title = _titleCtrl.text.trim();
-    _working.content = _contentCtrl.text.trim();
+    if (_saving) return;
+    setState(() => _saving = true);
 
-    if (_isNew) {
-      final created = await p.addNote(
-        title: _working.title,
-        content: _working.content,
-        notebookId: _working.notebookId,
-      );
-      created.tagIds = List.from(_working.tagIds);
-      if (_working.color != null) {
-        created.color = _working.color;
-      }
-      await p.updateNote(created);
+    final p = context.read<NoteProvider>();
+    final title = _titleCtrl.text.trim();
+    final content = _contentCtrl.text.trim();
+
+    if (title.isEmpty && content.isEmpty) {
       if (mounted) Navigator.pop(context, null);
-    } else {
-      await p.updateNote(_working);
-      if (mounted) Navigator.pop(context, _working);
+      return;
+    }
+
+    try {
+      if (_isNew) {
+        final created = await p.addNote(
+          title: title.isEmpty ? 'Tanpa Judul' : title,
+          content: content,
+          notebookId: _working.notebookId,
+        );
+        // apply warna & tag
+        if (_working.color != null) created.color = _working.color;
+        created.tagIds = List.from(_working.tagIds);
+        await p.updateNote(created);
+      } else {
+        _working.title = title.isEmpty ? 'Tanpa Judul' : title;
+        _working.content = content;
+        await p.updateNote(_working);
+      }
+      if (mounted) Navigator.pop(context, null);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal simpan: $e')),
+        );
+      }
     }
   }
 
@@ -91,8 +105,14 @@ class _EditScreenState extends State<EditScreen> {
           ),
           IconButton(
             tooltip: 'Simpan',
-            icon: const Icon(Icons.check),
-            onPressed: _save,
+            icon: _saving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.check),
+            onPressed: _saving ? null : _save,
           ),
         ],
       ),
@@ -155,14 +175,14 @@ class _EditScreenState extends State<EditScreen> {
 
   Future<void> _pickColor() async {
     final colors = <Color>[
-      const Color(0xFF6750A4), // purple
-      const Color(0xFFE57373), // red
-      const Color(0xFFFFB74D), // orange
-      const Color(0xFFFFF176), // yellow
-      const Color(0xFF81C784), // green
-      const Color(0xFF64B5F6), // blue
-      const Color(0xFFBA68C8), // pink
-      const Color(0xFFA1887F), // brown
+      const Color(0xFF6750A4),
+      const Color(0xFFE57373),
+      const Color(0xFFFFB74D),
+      const Color(0xFFFFF176),
+      const Color(0xFF81C784),
+      const Color(0xFF64B5F6),
+      const Color(0xFFBA68C8),
+      const Color(0xFFA1887F),
     ];
     final picked = await showDialog<Color?>(
       context: context,
@@ -255,7 +275,8 @@ class _EditScreenState extends State<EditScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Tag', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text('Tag',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
                 Row(
                   children: [

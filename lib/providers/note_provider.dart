@@ -16,6 +16,7 @@ class NoteProvider extends ChangeNotifier {
   String? _tagIdFilter;
   String _query = '';
   bool _loading = false;
+  String? _error;
 
   List<Note> get notes => List.unmodifiable(_filtered);
   NoteFilter get filter => _filter;
@@ -23,22 +24,31 @@ class NoteProvider extends ChangeNotifier {
   String? get tagIdFilter => _tagIdFilter;
   String get query => _query;
   bool get loading => _loading;
+  String? get error => _error;
 
   Future<void> load() async {
     _loading = true;
+    _error = null;
     notifyListeners();
-    final db = await _db.database;
-    final rows = await db.query('notes', orderBy: 'is_pinned DESC, updated_at DESC');
-    _notes = [];
-    for (final r in rows) {
-      final tagRows = await db.query('note_tags',
-          columns: ['tag_id'], where: 'note_id = ?', whereArgs: [r['id']]);
-      final tags = tagRows.map((e) => e['tag_id'] as String).toList();
-      _notes.add(Note.fromMap(r, tags: tags));
+    try {
+      final db = await _db.database;
+      final rows = await db.query('notes',
+          orderBy: 'is_pinned DESC, updated_at DESC');
+      _notes = [];
+      for (final r in rows) {
+        final tagRows = await db.query('note_tags',
+            columns: ['tag_id'], where: 'note_id = ?', whereArgs: [r['id']]);
+        final tags = tagRows.map((e) => e['tag_id'] as String).toList();
+        _notes.add(Note.fromMap(r, tags: tags));
+      }
+      _applyFilter();
+    } catch (e, st) {
+      _error = 'Load gagal: $e';
+      debugPrint('NoteProvider.load ERROR: $e\n$st');
+    } finally {
+      _loading = false;
+      notifyListeners();
     }
-    _loading = false;
-    _applyFilter();
-    notifyListeners();
   }
 
   void setFilter(NoteFilter f) {
@@ -66,14 +76,25 @@ class NoteProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    final db = await _db.database;
-    final rows = await db.rawQuery('''
-      SELECT n.* FROM notes n
-      INNER JOIN notes_fts f ON f.note_id = n.id
-      WHERE notes_fts MATCH ?
-      ORDER BY n.is_pinned DESC, n.updated_at DESC
-    ''', ['$_query*']);
-    _filtered = rows.map((r) => Note.fromMap(r)).toList();
+    try {
+      final db = await _db.database;
+      final safe = _query.replaceAll(RegExp(r'[^\w\s]'), '').trim();
+      if (safe.isEmpty) {
+        _filtered = [];
+        notifyListeners();
+        return;
+      }
+      final rows = await db.rawQuery('''
+        SELECT n.* FROM notes n
+        INNER JOIN notes_fts f ON f.note_id = n.id
+        WHERE notes_fts MATCH ?
+        ORDER BY n.is_pinned DESC, n.updated_at DESC
+      ''', ['$safe*']);
+      _filtered = rows.map((r) => Note.fromMap(r)).toList();
+    } catch (e) {
+      _filtered = [];
+      debugPrint('search error: $e');
+    }
     notifyListeners();
   }
 
@@ -118,22 +139,24 @@ class NoteProvider extends ChangeNotifier {
   }
 
   Future<void> updateNote(Note note) async {
-    final db = await _db.database;
     note.updatedAt = DateTime.now();
-    await db.update('notes', note.toMap(), where: 'id = ?', whereArgs: [note.id]);
-    await _syncTags(note);
-    final i = _notes.indexWhere((n) => n.id == note.id);
-    if (i >= 0) _notes[i] = note;
-    _applyFilter();
-    notifyListeners();
-  }
-
-  Future<void> _syncTags(Note note) async {
     final db = await _db.database;
+    await db.update('notes', note.toMap(), where: 'id = ?', whereArgs: [note.id]);
+    // sync tags
     await db.delete('note_tags', where: 'note_id = ?', whereArgs: [note.id]);
     for (final tagId in note.tagIds) {
-      await db.insert('note_tags', {'note_id': note.id, 'tag_id': tagId});
+      try {
+        await db.insert('note_tags', {'note_id': note.id, 'tag_id': tagId});
+      } catch (_) {}
     }
+    final i = _notes.indexWhere((n) => n.id == note.id);
+    if (i >= 0) {
+      _notes[i] = note;
+    } else {
+      _notes.insert(0, note);
+    }
+    _applyFilter();
+    notifyListeners();
   }
 
   Future<void> togglePin(Note note) async {

@@ -21,7 +21,9 @@ class ThemeProvider extends ChangeNotifier {
       'dark' => ThemeMode.dark,
       _ => ThemeMode.system,
     };
-    if (colorVal != null) _seed = Color(colorVal);
+    if (colorVal != null) {
+      _seed = Color(colorVal);
+    }
     notifyListeners();
   }
 
@@ -35,7 +37,7 @@ class ThemeProvider extends ChangeNotifier {
   Future<void> setSeed(Color c) async {
     _seed = c;
     final p = await SharedPreferences.getInstance();
-    await p.setInt(_kColor, c.value);
+    await p.setInt(_kColor, c.toARGB32());
     notifyListeners();
   }
 }
