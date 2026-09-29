@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -86,7 +85,6 @@ class _EditScreenState extends State<EditScreen> {
     await p.remove(_draftKeyContent);
   }
 
-  /// Simpan catatan. Return true kalau ada yang disimpan.
   Future<bool> _save({bool silent = false}) async {
     if (_saving) return false;
     _saving = true;
@@ -95,10 +93,10 @@ class _EditScreenState extends State<EditScreen> {
     final title = _titleCtrl.text.trim();
     final content = _contentCtrl.text.trim();
 
-    // Kosong total → tidak disimpan
     if (title.isEmpty && content.isEmpty) {
       await _clearDraft();
-      return false;
+      _saving = false;
+      return true;
     }
 
     try {
@@ -112,6 +110,8 @@ class _EditScreenState extends State<EditScreen> {
         created.tagIds = List.from(_working.tagIds);
         await p.updateNote(created);
         if (_reminder != null) await p.setReminder(created, _reminder);
+        _working = created;
+        _isNew = false;
       } else {
         _working.title = title.isEmpty ? 'Tanpa Judul' : title;
         _working.content = content;
@@ -137,11 +137,10 @@ class _EditScreenState extends State<EditScreen> {
     }
   }
 
-  Future<bool> _onWillPop() async {
-    // Auto-save saat back
-    final ok = await _save(silent: true);
-    // Selalu return true (allow pop) — kalau gagal, catatan masih draft
-    return ok || true;
+  /// Hitung warna teks kontras terhadap background
+  Color _contrastText(Color bg) {
+    final lum = bg.computeLuminance();
+    return lum > 0.5 ? Colors.black87 : Colors.white;
   }
 
   @override
@@ -151,54 +150,68 @@ class _EditScreenState extends State<EditScreen> {
     final scheme = Theme.of(context).colorScheme;
 
     // Warna editor mengikuti warna catatan
-    final editorBg = _working.color != null
-        ? Color(_working.color!)
-        : scheme.surface;
+    final customColor = _working.color != null ? Color(_working.color!) : null;
+    final editorBg = customColor ?? scheme.surface;
+    // Warna teks hanya kontras kalau pakai warna custom
+    final textColor = customColor != null
+        ? _contrastText(editorBg)
+        : scheme.onSurface;
+    final hintColor = textColor.withOpacity(0.55);
+    final iconColor = textColor;
+    final dividerColor = textColor.withOpacity(0.25);
 
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        // Auto-save sebelum pop
         await _save(silent: true);
         if (mounted) Navigator.pop(context);
       },
       child: Scaffold(
         backgroundColor: editorBg,
         appBar: AppBar(
-          backgroundColor: editorBg.withOpacity(0.5),
-          title: Text(_isNew ? 'Catatan Baru' : 'Edit Catatan'),
+          backgroundColor: editorBg,
+          foregroundColor: iconColor,
+          elevation: 0,
+          title: Text(
+            _isNew ? 'Catatan Baru' : 'Edit Catatan',
+            style: TextStyle(color: textColor),
+          ),
+          iconTheme: IconThemeData(color: iconColor),
           actions: [
             IconButton(
               tooltip: _reminder == null ? 'Set Pengingat' : 'Pengingat aktif',
-              icon: Icon(_reminder == null ? Icons.alarm_add : Icons.alarm_on),
-              color: _reminder != null ? scheme.primary : null,
+              icon: Icon(
+                _reminder == null ? Icons.alarm_add : Icons.alarm_on,
+                color: _reminder != null ? scheme.primary : iconColor,
+              ),
               onPressed: _pickReminder,
             ),
             IconButton(
               tooltip: 'Warna',
-              icon: const Icon(Icons.palette_outlined),
+              icon: Icon(Icons.palette_outlined, color: iconColor),
               onPressed: _pickColor,
             ),
             IconButton(
               tooltip: 'Notebook',
-              icon: const Icon(Icons.folder_outlined),
+              icon: Icon(Icons.folder_outlined, color: iconColor),
               onPressed: () => _pickNotebook(notebooks),
             ),
             IconButton(
               tooltip: 'Tag',
-              icon: const Icon(Icons.label_outline),
+              icon: Icon(Icons.label_outline, color: iconColor),
               onPressed: () => _pickTags(tags),
             ),
             IconButton(
               tooltip: 'Simpan',
               icon: _saving
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: iconColor),
                     )
-                  : const Icon(Icons.check),
+                  : Icon(Icons.check, color: iconColor),
               onPressed: _saving
                   ? null
                   : () async {
@@ -217,21 +230,22 @@ class _EditScreenState extends State<EditScreen> {
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: scheme.primaryContainer,
+                    color: textColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: textColor.withOpacity(0.3)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.alarm, size: 16),
+                      Icon(Icons.alarm, size: 16, color: textColor),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'Pengingat: ${AppDate.full(_reminder!)}',
-                          style: const TextStyle(fontSize: 12),
+                          style: TextStyle(fontSize: 12, color: textColor),
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close, size: 16),
+                        icon: Icon(Icons.close, size: 16, color: textColor),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         onPressed: () => setState(() => _reminder = null),
@@ -241,26 +255,35 @@ class _EditScreenState extends State<EditScreen> {
                 ),
               TextField(
                 controller: _titleCtrl,
-                decoration: const InputDecoration(
+                cursorColor: textColor,
+                decoration: InputDecoration(
                   hintText: 'Judul...',
+                  hintStyle: TextStyle(color: hintColor),
                   border: InputBorder.none,
                 ),
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
               ),
-              const Divider(),
+              Divider(color: dividerColor),
               Expanded(
                 child: TextField(
                   controller: _contentCtrl,
-                  decoration: const InputDecoration(
+                  cursorColor: textColor,
+                  decoration: InputDecoration(
                     hintText: 'Tulis catatan di sini...',
+                    hintStyle: TextStyle(color: hintColor),
                     border: InputBorder.none,
                   ),
+                  style: TextStyle(color: textColor),
                   maxLines: null,
                   expands: true,
                   textAlignVertical: TextAlignVertical.top,
                 ),
               ),
-              if (_working.tagIds.isNotEmpty) _tagChips(tags),
+              if (_working.tagIds.isNotEmpty) _tagChips(tags, textColor),
             ],
           ),
         ),
@@ -268,7 +291,7 @@ class _EditScreenState extends State<EditScreen> {
     );
   }
 
-  Widget _tagChips(TagProvider tp) {
+  Widget _tagChips(TagProvider tp, Color textColor) {
     final map = {for (final t in tp.tags) t.id: t};
     return SizedBox(
       height: 40,
@@ -281,9 +304,9 @@ class _EditScreenState extends State<EditScreen> {
               return Padding(
                 padding: const EdgeInsets.only(right: 6),
                 child: Chip(
-                  label: Text(tag.name),
-                  backgroundColor: Color(tag.color).withOpacity(0.15),
-                  deleteIcon: const Icon(Icons.close, size: 16),
+                  label: Text(tag.name, style: TextStyle(color: textColor)),
+                  backgroundColor: textColor.withOpacity(0.15),
+                  deleteIcon: Icon(Icons.close, size: 16, color: textColor),
                   onDeleted: () => setState(() => _working.tagIds.remove(id)),
                 ),
               );
@@ -370,7 +393,7 @@ class _EditScreenState extends State<EditScreen> {
                   border: Border.all(color: Colors.black26),
                   color: Colors.white,
                 ),
-                child: const Icon(Icons.close, size: 18),
+                child: const Icon(Icons.close, size: 18, color: Colors.black),
               ),
             ),
           ],

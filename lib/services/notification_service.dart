@@ -11,7 +11,7 @@ class NotificationService {
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _inited = false;
 
-  static const _channelId = 'note_app_reminders_v2';
+  static const _channelId = 'note_app_reminders_v3';
   static const _channelName = 'Pengingat Catatan';
   static const _channelDesc = 'Notifikasi pengingat untuk catatan';
 
@@ -58,8 +58,12 @@ class NotificationService {
           icon: '@mipmap/ic_launcher',
           enableVibration: true,
           playSound: true,
+          enableLights: true,
           category: AndroidNotificationCategory.reminder,
           visibility: NotificationVisibility.public,
+          fullScreenIntent: false,
+          ticker: 'Pengingat Catatan',
+          styleInformation: BigTextStyleInformation(''),
         ),
       );
 
