@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/note.dart';
 import '../../models/tag.dart';
@@ -25,6 +25,7 @@ class _EditScreenState extends State<EditScreen> {
   late Note _working;
   bool _isNew = false;
   bool _saving = false;
+  bool _saved = false;
   DateTime? _reminder;
   Timer? _draftTimer;
   late final String _draftKeyTitle;
@@ -44,6 +45,14 @@ class _EditScreenState extends State<EditScreen> {
     _titleCtrl.addListener(_onDraftChange);
     _contentCtrl.addListener(_onDraftChange);
     if (_isNew) _restoreDraft();
+  }
+
+  @override
+  void dispose() {
+    _draftTimer?.cancel();
+    _titleCtrl.dispose();
+    _contentCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _restoreDraft() async {
@@ -78,25 +87,20 @@ class _EditScreenState extends State<EditScreen> {
     await p.remove(_draftKeyContent);
   }
 
-  @override
-  void dispose() {
-    _draftTimer?.cancel();
-    _titleCtrl.dispose();
-    _contentCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    if (_saving) return;
-    setState(() => _saving = true);
+  /// Simpan catatan. Return true kalau ada yang disimpan.
+  Future<bool> _save({bool silent = false}) async {
+    if (_saving || _saved) return true;
+    _saving = true;
 
     final p = context.read<NoteProvider>();
     final title = _titleCtrl.text.trim();
     final content = _contentCtrl.text.trim();
 
+    // Kosong total → tidak disimpan
     if (title.isEmpty && content.isEmpty) {
-      if (mounted) Navigator.pop(context, null);
-      return;
+      await _clearDraft();
+      _saved = true;
+      return false;
     }
 
     try {
@@ -109,128 +113,153 @@ class _EditScreenState extends State<EditScreen> {
         if (_working.color != null) created.color = _working.color;
         created.tagIds = List.from(_working.tagIds);
         await p.updateNote(created);
-        // Set reminder kalau ada (setelah updateNote supaya field tidak tertimpa)
-        if (_reminder != null) {
-          await p.setReminder(created, _reminder);
-        }
+        if (_reminder != null) await p.setReminder(created, _reminder);
       } else {
         _working.title = title.isEmpty ? 'Tanpa Judul' : title;
         _working.content = content;
         await p.updateNote(_working);
-        // Selalu panggil setReminder (handle set/clear)
         await p.setReminder(_working, _reminder);
       }
       await _clearDraft();
-      if (mounted) Navigator.pop(context, null);
+      _saved = true;
+      if (!silent && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tersimpan'), duration: Duration(seconds: 1)),
+        );
+      }
+      return true;
     } catch (e) {
       if (mounted) {
-        setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Gagal simpan: $e')),
         );
       }
+      return false;
+    } finally {
+      _saving = false;
     }
+  }
+
+  Future<bool> _onWillPop() async {
+    // Auto-save saat back
+    final ok = await _save(silent: true);
+    // Selalu return true (allow pop) — kalau gagal, catatan masih draft
+    return ok || true;
   }
 
   @override
   Widget build(BuildContext context) {
     final notebooks = context.watch<NotebookProvider>();
     final tags = context.watch<TagProvider>();
+    final scheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isNew ? 'Catatan Baru' : 'Edit Catatan'),
-        actions: [
-          IconButton(
-            tooltip: _reminder == null ? 'Set Pengingat' : 'Pengingat aktif',
-            icon: Icon(_reminder == null ? Icons.alarm_add : Icons.alarm_on),
-            color: _reminder != null
-                ? Theme.of(context).colorScheme.primary
-                : null,
-            onPressed: _pickReminder,
-          ),
-          IconButton(
-            tooltip: 'Warna',
-            icon: const Icon(Icons.palette_outlined),
-            onPressed: _pickColor,
-          ),
-          IconButton(
-            tooltip: 'Notebook',
-            icon: const Icon(Icons.folder_outlined),
-            onPressed: () => _pickNotebook(notebooks),
-          ),
-          IconButton(
-            tooltip: 'Tag',
-            icon: const Icon(Icons.label_outline),
-            onPressed: () => _pickTags(tags),
-          ),
-          IconButton(
-            tooltip: 'Simpan',
-            icon: _saving
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.check),
-            onPressed: _saving ? null : _save,
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            if (_reminder != null)
-              Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.alarm, size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Pengingat: ${AppDate.full(_reminder!)}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 16),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: () => setState(() => _reminder = null),
-                    ),
-                  ],
-                ),
-              ),
-            TextField(
-              controller: _titleCtrl,
-              decoration: const InputDecoration(
-                hintText: 'Judul...',
-                border: InputBorder.none,
-              ),
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+    // Warna editor mengikuti warna catatan
+    final editorBg = _working.color != null
+        ? Color(_working.color!)
+        : scheme.surface;
+
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        backgroundColor: editorBg,
+        appBar: AppBar(
+          backgroundColor: editorBg.withOpacity(0.5),
+          title: Text(_isNew ? 'Catatan Baru' : 'Edit Catatan'),
+          actions: [
+            IconButton(
+              tooltip: _reminder == null ? 'Set Pengingat' : 'Pengingat aktif',
+              icon: Icon(_reminder == null ? Icons.alarm_add : Icons.alarm_on),
+              color: _reminder != null ? scheme.primary : null,
+              onPressed: _pickReminder,
             ),
-            const Divider(),
-            Expanded(
-              child: TextField(
-                controller: _contentCtrl,
+            IconButton(
+              tooltip: 'Warna',
+              icon: const Icon(Icons.palette_outlined),
+              onPressed: _pickColor,
+            ),
+            IconButton(
+              tooltip: 'Notebook',
+              icon: const Icon(Icons.folder_outlined),
+              onPressed: () => _pickNotebook(notebooks),
+            ),
+            IconButton(
+              tooltip: 'Tag',
+              icon: const Icon(Icons.label_outline),
+              onPressed: () => _pickTags(tags),
+            ),
+            IconButton(
+              tooltip: 'Simpan',
+              icon: _saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check),
+              onPressed: _saving
+                  ? null
+                  : () async {
+                      final ok = await _save();
+                      if (ok && mounted) Navigator.pop(context);
+                    },
+            ),
+          ],
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              if (_reminder != null)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: scheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.alarm, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Pengingat: ${AppDate.full(_reminder!)}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 16),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => setState(() => _reminder = null),
+                      ),
+                    ],
+                  ),
+                ),
+              TextField(
+                controller: _titleCtrl,
                 decoration: const InputDecoration(
-                  hintText: 'Tulis catatan di sini...',
+                  hintText: 'Judul...',
                   border: InputBorder.none,
                 ),
-                maxLines: null,
-                expands: true,
-                textAlignVertical: TextAlignVertical.top,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
-            ),
-            if (_working.tagIds.isNotEmpty) _tagChips(tags),
-          ],
+              const Divider(),
+              Expanded(
+                child: TextField(
+                  controller: _contentCtrl,
+                  decoration: const InputDecoration(
+                    hintText: 'Tulis catatan di sini...',
+                    border: InputBorder.none,
+                  ),
+                  maxLines: null,
+                  expands: true,
+                  textAlignVertical: TextAlignVertical.top,
+                ),
+              ),
+              if (_working.tagIds.isNotEmpty) _tagChips(tags),
+            ],
+          ),
         ),
       ),
     );
@@ -263,7 +292,7 @@ class _EditScreenState extends State<EditScreen> {
 
   Future<void> _pickReminder() async {
     final now = DateTime.now();
-    final initial = _reminder ?? now.add(const Duration(hours: 1));
+    final initial = _reminder ?? now.add(const Duration(minutes: 5));
 
     final date = await showDatePicker(
       context: context,
@@ -281,20 +310,14 @@ class _EditScreenState extends State<EditScreen> {
     if (time == null) return;
 
     final picked = DateTime(
-      date.year,
-      date.month,
-      date.day,
-      time.hour,
-      time.minute,
-      0,
-      0,
-      0,
+      date.year, date.month, date.day,
+      time.hour, time.minute, 0, 0, 0,
     );
 
-    if (picked.isBefore(DateTime.now())) {
+    if (picked.isBefore(DateTime.now().add(const Duration(seconds: 30)))) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Waktu sudah lewat, pilih waktu lain')),
+          const SnackBar(content: Text('Pilih waktu minimal 1 menit ke depan')),
         );
       }
       return;
@@ -401,9 +424,7 @@ class _EditScreenState extends State<EditScreen> {
           return Padding(
             padding: EdgeInsets.only(
                 bottom: MediaQuery.of(ctx).viewInsets.bottom,
-                left: 16,
-                right: 16,
-                top: 16),
+                left: 16, right: 16, top: 16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
