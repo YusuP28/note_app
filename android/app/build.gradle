@@ -12,6 +12,21 @@ if (localPropertiesFile.exists()) {
     }
 }
 
+// ===== SIGNING CONFIG =====
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withReader("UTF-8") { reader ->
+        keystoreProperties.load(reader)
+    }
+}
+
+// Fallback: baca dari environment (untuk CI)
+def envStoreFile = System.getenv("KEYSTORE_FILE") ?: keystoreProperties['storeFile']
+def envStorePassword = System.getenv("KEYSTORE_PASSWORD") ?: keystoreProperties['storePassword']
+def envKeyAlias = System.getenv("KEY_ALIAS") ?: keystoreProperties['keyAlias']
+def envKeyPassword = System.getenv("KEY_PASSWORD") ?: keystoreProperties['keyPassword']
+
 def flutterVersionCode = localProperties.getProperty("flutter.versionCode") ?: "1"
 def flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "1.0"
 
@@ -39,9 +54,26 @@ android {
         multiDexEnabled = true
     }
 
+    signingConfigs {
+        release {
+            if (envStoreFile != null && file(envStoreFile).exists()) {
+                storeFile file(envStoreFile)
+                storePassword envStorePassword
+                keyAlias envKeyAlias
+                keyPassword envKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.debug
+            // Pakai release keystore kalau ada, fallback ke debug
+            if (envStoreFile != null && file(envStoreFile).exists()) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+                println "[!] Release keystore tidak ditemukan — pakai DEBUG key"
+            }
             minifyEnabled = true
             shrinkResources = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
