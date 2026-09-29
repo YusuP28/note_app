@@ -25,7 +25,6 @@ class _EditScreenState extends State<EditScreen> {
   late Note _working;
   bool _isNew = false;
   bool _saving = false;
-  bool _saved = false;
   DateTime? _reminder;
   Timer? _draftTimer;
   late final String _draftKeyTitle;
@@ -89,7 +88,7 @@ class _EditScreenState extends State<EditScreen> {
 
   /// Simpan catatan. Return true kalau ada yang disimpan.
   Future<bool> _save({bool silent = false}) async {
-    if (_saving || _saved) return true;
+    if (_saving) return false;
     _saving = true;
 
     final p = context.read<NoteProvider>();
@@ -99,7 +98,6 @@ class _EditScreenState extends State<EditScreen> {
     // Kosong total → tidak disimpan
     if (title.isEmpty && content.isEmpty) {
       await _clearDraft();
-      _saved = true;
       return false;
     }
 
@@ -121,7 +119,6 @@ class _EditScreenState extends State<EditScreen> {
         await p.setReminder(_working, _reminder);
       }
       await _clearDraft();
-      _saved = true;
       if (!silent && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Tersimpan'), duration: Duration(seconds: 1)),
@@ -158,8 +155,14 @@ class _EditScreenState extends State<EditScreen> {
         ? Color(_working.color!)
         : scheme.surface;
 
-    return WillPopScope(
-      onWillPop: _onWillPop,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        // Auto-save sebelum pop
+        await _save(silent: true);
+        if (mounted) Navigator.pop(context);
+      },
       child: Scaffold(
         backgroundColor: editorBg,
         appBar: AppBar(

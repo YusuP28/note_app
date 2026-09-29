@@ -201,6 +201,7 @@ class NoteProvider extends ChangeNotifier {
   }
 
   Future<void> setReminder(Note note, DateTime? when) async {
+    debugPrint('setReminder: note=${note.id} when=$when');
     // Set field dulu, baru update DB + notify
     note.reminderAt = when;
     await updateNote(note);
