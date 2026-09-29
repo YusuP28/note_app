@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 
 import '../../models/note.dart';
 import '../../models/tag.dart';
 import '../../providers/note_provider.dart';
 import '../../providers/notebook_provider.dart';
 import '../../providers/tag_provider.dart';
+import '../../utils/date_utils.dart';
 
 class EditScreen extends StatefulWidget {
   final Note? note;
@@ -21,6 +23,7 @@ class _EditScreenState extends State<EditScreen> {
   late Note _working;
   bool _isNew = false;
   bool _saving = false;
+  DateTime? _reminder;
 
   @override
   void initState() {
@@ -30,6 +33,7 @@ class _EditScreenState extends State<EditScreen> {
         Note(id: '', createdAt: DateTime.now(), updatedAt: DateTime.now());
     _titleCtrl = TextEditingController(text: _working.title);
     _contentCtrl = TextEditingController(text: _working.content);
+    _reminder = _working.reminderAt;
   }
 
   @override
@@ -59,14 +63,15 @@ class _EditScreenState extends State<EditScreen> {
           content: content,
           notebookId: _working.notebookId,
         );
-        // apply warna & tag
         if (_working.color != null) created.color = _working.color;
         created.tagIds = List.from(_working.tagIds);
         await p.updateNote(created);
+        if (_reminder != null) await p.setReminder(created, _reminder);
       } else {
         _working.title = title.isEmpty ? 'Tanpa Judul' : title;
         _working.content = content;
         await p.updateNote(_working);
+        await p.setReminder(_working, _reminder);
       }
       if (mounted) Navigator.pop(context, null);
     } catch (e) {
@@ -88,6 +93,14 @@ class _EditScreenState extends State<EditScreen> {
       appBar: AppBar(
         title: Text(_isNew ? 'Catatan Baru' : 'Edit Catatan'),
         actions: [
+          IconButton(
+            tooltip: _reminder == null ? 'Set Pengingat' : 'Pengingat aktif',
+            icon: Icon(_reminder == null ? Icons.alarm_add : Icons.alarm_on),
+            color: _reminder != null
+                ? Theme.of(context).colorScheme.primary
+                : null,
+            onPressed: _pickReminder,
+          ),
           IconButton(
             tooltip: 'Warna',
             icon: const Icon(Icons.palette_outlined),
@@ -120,6 +133,33 @@ class _EditScreenState extends State<EditScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            if (_reminder != null)
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.alarm, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Pengingat: ${AppDate.full(_reminder!)}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 16),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () => setState(() => _reminder = null),
+                    ),
+                  ],
+                ),
+              ),
             TextField(
               controller: _titleCtrl,
               decoration: const InputDecoration(
@@ -171,6 +211,45 @@ class _EditScreenState extends State<EditScreen> {
             .toList(),
       ),
     );
+  }
+
+  Future<void> _pickReminder() async {
+    final now = DateTime.now();
+    final initial = _reminder ?? now.add(const Duration(hours: 1));
+
+    final date = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365 * 5)),
+    );
+    if (date == null) return;
+    if (!mounted) return;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
+    if (time == null) return;
+
+    final picked = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+
+    if (picked.isBefore(DateTime.now())) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Waktu sudah lewat, pilih waktu lain')),
+        );
+      }
+      return;
+    }
+
+    setState(() => _reminder = picked);
   }
 
   Future<void> _pickColor() async {
@@ -270,7 +349,10 @@ class _EditScreenState extends State<EditScreen> {
           final ctrl = TextEditingController();
           return Padding(
             padding: EdgeInsets.only(
-                bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 16, right: 16, top: 16),
+                bottom: MediaQuery.of(ctx).viewInsets.bottom,
+                left: 16,
+                right: 16,
+                top: 16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
