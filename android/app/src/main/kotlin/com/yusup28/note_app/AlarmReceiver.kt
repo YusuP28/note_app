@@ -37,18 +37,22 @@ class AlarmReceiver : BroadcastReceiver() {
         fun stopAlarmStatic(context: Context) {
             try {
                 currentPlayer?.let {
-                    if (it.isPlaying) it.stop()
-                    it.release()
+                    try { if (it.isPlaying) it.stop() } catch (_: Exception) {}
+                    try { it.release() } catch (_: Exception) {}
                 }
             } catch (_: Exception) {}
             currentPlayer = null
             stopHandler?.removeCallbacksAndMessages(null)
             stopHandler = null
-            currentNoteId?.let {
-                try {
-                    androidx.core.app.NotificationManagerCompat.from(context).cancel(it.hashCode())
-                } catch (_: Exception) {}
-            }
+
+            // Cancel notif by ID (kalau ada)
+            try {
+                val nm = androidx.core.app.NotificationManagerCompat.from(context)
+                currentNoteId?.let { nm.cancel(it.hashCode()) }
+                // Safety: cancel all note_app notifs
+                nm.cancelAll()
+            } catch (_: Exception) {}
+
             currentNoteId = null
         }
     }
@@ -56,7 +60,8 @@ class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         // Cek kalau ini intent STOP dari notif
         if (intent.action == ACTION_STOP) {
-            stopAlarm(context)
+            Log.d(TAG, "ACTION_STOP received — stopping alarm")
+            stopAlarmStatic(context) // pakai static biar konsisten
             return
         }
 
@@ -151,8 +156,8 @@ class AlarmReceiver : BroadcastReceiver() {
     private fun stopAlarm(context: Context) {
         try {
             currentPlayer?.let {
-                if (it.isPlaying) it.stop()
-                it.release()
+                try { if (it.isPlaying) it.stop() } catch (_: Exception) {}
+                try { it.release() } catch (_: Exception) {}
             }
         } catch (_: Exception) {}
         currentPlayer = null
@@ -160,15 +165,15 @@ class AlarmReceiver : BroadcastReceiver() {
         stopHandler?.removeCallbacksAndMessages(null)
         stopHandler = null
 
-        // Cancel notif
-        currentNoteId?.let {
-            try {
-                NotificationManagerCompat.from(context).cancel(it.hashCode())
-            } catch (_: Exception) {}
-        }
-        currentNoteId = null
+        // Cancel notif by ID + all (safety)
+        try {
+            val nm = NotificationManagerCompat.from(context)
+            currentNoteId?.let { nm.cancel(it.hashCode()) }
+            nm.cancelAll()
+        } catch (_: Exception) {}
 
-        Log.d(TAG, "Alarm stopped")
+        currentNoteId = null
+        Log.d(TAG, "Alarm stopped + notif dismissed")
     }
 
     // ============ SOUND (loop) ============
