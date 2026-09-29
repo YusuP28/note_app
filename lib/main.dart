@@ -51,3 +51,46 @@ class NoteApp extends StatelessWidget {
     );
   }
 }
+
+
+class _Launcher extends StatefulWidget {
+  const _Launcher();
+
+  @override
+  State<_Launcher> createState() => _LauncherState();
+}
+
+class _LauncherState extends State<_Launcher> {
+  static const _channel = MethodChannel('note_app/alarm_page');
+  bool _isAlarm = false;
+  bool _checked = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_checked) {
+      _checked = true;
+      _check();
+    }
+  }
+
+  Future<void> _check() async {
+    try {
+      final noteId = await _channel.invokeMethod<String>('getNoteId');
+      if ((noteId != null && noteId.isNotEmpty) && mounted) {
+        setState(() => _isAlarm = true);
+      }
+    } catch (_) {}
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_checked) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return _isAlarm ? const AlarmPageScreen() : const HomeScreen();
+  }
+}
