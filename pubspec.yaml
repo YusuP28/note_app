@@ -1,7 +1,7 @@
 name: note_app
-description: Aplikasi catatan sederhana
+description: Aplikasi catatan modern - offline first
 publish_to: 'none'
-version: 1.1.0+2
+version: 2.0.0+3
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -9,14 +9,33 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  path_provider: ^2.1.1
-  share_plus: ^7.2.1
-  file_picker: ^6.1.1
+
+  # State management
+  provider: ^6.1.2
+
+  # Database
+  sqflite: ^2.3.3+1
+  path: ^1.9.0
+  path_provider: ^2.1.4
+
+  # Storage lokal (setting)
+  shared_preferences: ^2.3.2
+
+  # File & share
+  file_picker: ^8.1.2
+  share_plus: ^10.0.2
+
+  # Utils
+  intl: ^0.19.0
+  uuid: ^4.5.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.1
+  flutter_lints: ^4.0.0
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icons/
+    - assets/images/
