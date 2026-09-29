@@ -78,18 +78,18 @@ class NoteProvider extends ChangeNotifier {
     }
     try {
       final db = await _db.database;
-      final safe = _query.replaceAll(RegExp(r'[^\w\s]'), '').trim();
-      if (safe.isEmpty) {
-        _filtered = [];
-        notifyListeners();
-        return;
-      }
-      final rows = await db.rawQuery('''
-        SELECT n.* FROM notes n
-        INNER JOIN notes_fts f ON f.note_id = n.id
-        WHERE notes_fts MATCH ?
-        ORDER BY n.is_pinned DESC, n.updated_at DESC
-      ''', ['$safe*']);
+      final esc = _query
+          .replaceAll(r'\', r'\\')
+          .replaceAll('%', r'\%')
+          .replaceAll('_', r'\_');
+      final like = '%$esc%';
+      final rows = await db.rawQuery(
+        "SELECT * FROM notes "
+        "WHERE is_trashed = 0 AND is_archived = 0 "
+        "AND (title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\') "
+        "ORDER BY is_pinned DESC, updated_at DESC",
+        [like, like],
+      );
       _filtered = rows.map((r) => Note.fromMap(r)).toList();
     } catch (e) {
       _filtered = [];
@@ -142,7 +142,6 @@ class NoteProvider extends ChangeNotifier {
     note.updatedAt = DateTime.now();
     final db = await _db.database;
     await db.update('notes', note.toMap(), where: 'id = ?', whereArgs: [note.id]);
-    // sync tags
     await db.delete('note_tags', where: 'note_id = ?', whereArgs: [note.id]);
     for (final tagId in note.tagIds) {
       try {

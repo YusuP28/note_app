@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
@@ -10,7 +9,7 @@ class DatabaseService {
 
   static Database? _db;
   static const int _version = 1;
-  static const String _dbName = 'note_app_v2.db'; // ganti nama biar gak bentrok v1
+  static const String _dbName = 'note_app_v3.db'; // bump: schema baru
 
   Future<Database> get database async {
     if (_db != null) return _db!;
@@ -81,6 +80,7 @@ class DatabaseService {
     await db.execute(
         'CREATE INDEX idx_notes_flags ON notes(is_pinned, is_archived, is_trashed)');
     await db.execute('CREATE INDEX idx_notes_updated ON notes(updated_at DESC)');
+    await db.execute('CREATE INDEX idx_notes_title ON notes(title)');
 
     await db.execute('''
       CREATE TABLE note_tags (
@@ -93,29 +93,6 @@ class DatabaseService {
     ''');
     await db.execute('CREATE INDEX idx_note_tags_tag ON note_tags(tag_id)');
 
-    await db.execute('''
-      CREATE VIRTUAL TABLE notes_fts USING fts5(
-        title, content, note_id UNINDEXED, tokenize='unicode61'
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TRIGGER notes_ai AFTER INSERT ON notes BEGIN
-        INSERT INTO notes_fts(title, content, note_id)
-        VALUES (new.title, new.content, new.id);
-      END
-    ''');
-    await db.execute('''
-      CREATE TRIGGER notes_ad AFTER DELETE ON notes BEGIN
-        DELETE FROM notes_fts WHERE note_id = old.id;
-      END
-    ''');
-    await db.execute('''
-      CREATE TRIGGER notes_au AFTER UPDATE ON notes BEGIN
-        UPDATE notes_fts SET title = new.title, content = new.content
-        WHERE note_id = new.id;
-      END
-    ''');
     debugPrint('DB created OK');
   }
 
@@ -132,6 +109,5 @@ class DatabaseService {
     await db.delete('notes');
     await db.delete('tags');
     await db.delete('notebooks');
-    await db.execute('DELETE FROM notes_fts');
   }
 }
