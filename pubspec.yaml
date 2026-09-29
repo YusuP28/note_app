@@ -25,10 +25,6 @@ dependencies:
   file_picker: ^8.1.2
   share_plus: ^10.0.2
 
-  # Notifikasi
-  flutter_local_notifications: ^17.2.3
-  timezone: ^0.9.4
-
   # Utils
   intl: ^0.19.0
   uuid: ^4.5.1
