@@ -45,3 +45,7 @@ logs/
 *.bak
 *~
 full_log.txt
+
+# Backup files (jangan commit)
+*.bak-*
+*.old.txt
