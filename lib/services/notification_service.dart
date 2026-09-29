@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -17,15 +16,11 @@ class NotificationService {
   static const _channelDesc = 'Notifikasi pengingat untuk catatan';
 
   Future<void> init() async {
+    if (kIsWeb) return; // skip di web
     if (_inited) return;
     _inited = true;
 
     tz.initializeTimeZones();
-    try {
-      // Coba deteksi timezone lokal
-      final name = DateTime.now().timeZoneName;
-      debugPrint('TZ name: $name');
-    } catch (_) {}
 
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const initSettings = InitializationSettings(android: androidInit);
@@ -37,12 +32,10 @@ class NotificationService {
       },
     );
 
-    if (Platform.isAndroid) {
-      final android = _plugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-      await android?.requestNotificationsPermission();
-      await android?.requestExactAlarmsPermission();
-    }
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    await android?.requestNotificationsPermission();
+    await android?.requestExactAlarmsPermission();
   }
 
   NotificationDetails get _details => const NotificationDetails(
@@ -56,38 +49,43 @@ class NotificationService {
         ),
       );
 
-  /// Schedule reminder untuk [noteId] pada [when].
   Future<void> schedule({
     required String noteId,
     required String title,
     required String body,
     required DateTime when,
   }) async {
+    if (kIsWeb) return;
     if (when.isBefore(DateTime.now())) return;
+
     final id = _idFromString(noteId);
+    final whenTz = tz.TZDateTime.from(when, tz.local);
 
     try {
       await _plugin.zonedSchedule(
         id,
         title.isEmpty ? 'Pengingat' : title,
         body,
-        tz.TZDateTime.from(when, tz.local),
+        whenTz,
         _details,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
         payload: noteId,
       );
       debugPrint('Scheduled notif id=$id at $when');
     } catch (e) {
       debugPrint('Schedule ERROR: $e');
-      // fallback: inexact
       try {
         await _plugin.zonedSchedule(
           id,
           title.isEmpty ? 'Pengingat' : title,
           body,
-          tz.TZDateTime.from(when, tz.local),
+          whenTz,
           _details,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
           payload: noteId,
         );
       } catch (e2) {
@@ -97,16 +95,16 @@ class NotificationService {
   }
 
   Future<void> cancel(String noteId) async {
+    if (kIsWeb) return;
     await _plugin.cancel(_idFromString(noteId));
-    debugPrint('Cancelled notif for $noteId');
   }
 
   Future<void> cancelAll() async {
+    if (kIsWeb) return;
     await _plugin.cancelAll();
   }
 
   int _idFromString(String s) {
-    // hash ke 31-bit int
     var h = 0;
     for (final c in s.codeUnits) {
       h = (h * 31 + c) & 0x7FFFFFFF;
