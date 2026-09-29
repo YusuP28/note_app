@@ -29,14 +29,6 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Verify Android folder exists
-        run: |
-          if [ ! -d "android" ]; then
-            echo "Folder android/ tidak ditemukan!"
-            exit 1
-          fi
-          echo "Folder android/ ditemukan"
-
       - name: Get dependencies
         run: flutter pub get
 
@@ -44,9 +36,13 @@ jobs:
         if: "!startsWith(github.ref, 'refs/tags/v')"
         run: flutter build apk --debug
 
-      - name: Build APK (release)
+      - name: Build APK (release, split-per-abi)
         if: startsWith(github.ref, 'refs/tags/v')
-        run: flutter build apk --release
+        run: |
+          flutter build apk --release \
+            --split-per-abi \
+            --obfuscate \
+            --split-debug-info=build/debug-info
 
       - name: Upload Debug APK
         if: "!startsWith(github.ref, 'refs/tags/v')"
@@ -55,10 +51,17 @@ jobs:
           name: note-app-debug
           path: build/app/outputs/flutter-apk/app-debug.apk
 
-      - name: Upload Release APK to Release
+      - name: Upload Release APKs (split-per-abi)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: note-app-release
+          path: build/app/outputs/flutter-apk/app-*-release.apk
+
+      - name: Attach APKs to Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: build/app/outputs/flutter-apk/app-release.apk
+          files: build/app/outputs/flutter-apk/app-*-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
