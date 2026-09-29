@@ -61,6 +61,20 @@ class MainActivity : FlutterActivity() {
                             result.success(true)
                         }
                     }
+                    "openChannelSettings" -> {
+                        try {
+                            val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
+                                putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                                putExtra(Settings.EXTRA_CHANNEL_ID,
+                                    call.argument<String>("channelId") ?: "note_app_alarm_v3_sound1")
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                            startActivity(intent)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("ERR", e.message, null)
+                        }
+                    }
                     "testNow" -> {
                         val noteId = call.argument<String>("noteId") ?: "test"
                         val title = call.argument<String>("title") ?: "Test Notifikasi"

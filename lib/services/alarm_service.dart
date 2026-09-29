@@ -63,6 +63,19 @@ class AlarmService {
     }
   }
 
+  Future<bool> openChannelSettings({String? channelId}) async {
+    if (kIsWeb) return false;
+    try {
+      final r = await _channel.invokeMethod<bool>('openChannelSettings', {
+        'channelId': channelId ?? 'note_app_alarm_v3_sound1',
+      });
+      return r ?? false;
+    } catch (e) {
+      debugPrint('openChannelSettings err: $e');
+      return false;
+    }
+  }
+
   Future<bool> testNow({String? title, String? body}) async {
     if (kIsWeb) return false;
     try {
