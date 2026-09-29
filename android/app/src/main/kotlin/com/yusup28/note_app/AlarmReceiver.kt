@@ -27,11 +27,30 @@ class AlarmReceiver : BroadcastReceiver() {
         private const val TAG = "AlarmReceiver"
         private val RAW_SOUNDS = listOf("sound1", "sound2", "sound3")
 
-        // Global — biar bisa di-stop dari StopReceiver
+        // Global — biar bisa di-stop dari StopReceiver / AlarmActivity
         @Volatile
         var currentPlayer: MediaPlayer? = null
         private var stopHandler: Handler? = null
         private var currentNoteId: String? = null
+
+        // Static stop — dipanggil dari AlarmActivity
+        fun stopAlarmStatic(context: Context) {
+            try {
+                currentPlayer?.let {
+                    if (it.isPlaying) it.stop()
+                    it.release()
+                }
+            } catch (_: Exception) {}
+            currentPlayer = null
+            stopHandler?.removeCallbacksAndMessages(null)
+            stopHandler = null
+            currentNoteId?.let {
+                try {
+                    androidx.core.app.NotificationManagerCompat.from(context).cancel(it.hashCode())
+                } catch (_: Exception) {}
+            }
+            currentNoteId = null
+        }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -54,9 +73,11 @@ class AlarmReceiver : BroadcastReceiver() {
         createChannel(context)
 
         // Intent buka app saat notif ditap
-        val openIntent = Intent(context, MainActivity::class.java).apply {
+        val openIntent = Intent(context, AlarmActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("noteId", noteId)
+            putExtra("title", title)
+            putExtra("body", body)
         }
         val pendingIntent = PendingIntent.getActivity(
             context,

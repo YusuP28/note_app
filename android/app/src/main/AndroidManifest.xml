@@ -35,6 +35,16 @@
             </intent-filter>
         </activity>
 
+        <!-- Alarm Activity (full-screen page) -->
+        <activity
+            android:name=".AlarmActivity"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:excludeFromRecents="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/LaunchTheme" />
+
         <!-- Alarm Broadcast Receiver -->
         <receiver
             android:name=".AlarmReceiver"

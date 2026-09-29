@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/note_provider.dart';
@@ -7,6 +8,7 @@ import 'providers/tag_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/notes/home_screen.dart';
+import 'screens/alarm/alarm_page_screen.dart';
 import 'services/migration_service.dart';
 import 'services/backup_service.dart';
 import 'services/alarm_service.dart';
@@ -42,7 +44,7 @@ class NoteApp extends StatelessWidget {
             theme: AppTheme.light(theme.seed),
             darkTheme: AppTheme.dark(theme.seed),
             themeMode: theme.mode,
-            home: const HomeScreen(),
+            home: const _Launcher(),
           );
         },
       ),
