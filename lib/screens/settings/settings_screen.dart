@@ -20,39 +20,70 @@ class SettingsScreen extends StatelessWidget {
         children: [
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text('Tampilan', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+            child: Text(
+              'Tampilan',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
           ),
           SwitchListTile(
             title: const Text('Mode Gelap'),
-            value: themeProvider.isDarkMode,
-            onChanged: (val) => themeProvider.toggleTheme(),
+            value: themeProvider.isDark,
+            onChanged: (val) => themeProvider.setMode(
+              val ? ThemeMode.dark : ThemeMode.light,
+            ),
           ),
           const Divider(),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text('Notifikasi & Alarm', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+            child: Text(
+              'Notifikasi & Alarm',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
           ),
           ListTile(
             title: const Text('Suara Alarm/Notifikasi'),
             subtitle: Text(settings.notificationSound),
             trailing: DropdownButton<String>(
-              value: ['sound1', 'sound2', 'sound3'].contains(settings.notificationSound) 
-                  ? settings.notificationSound 
+              value: ['sound1', 'sound2', 'sound3']
+                      .contains(settings.notificationSound)
+                  ? settings.notificationSound
                   : 'custom',
               items: const [
-                DropdownMenuItem(value: 'sound1', child: Text('Sound 1')),
-                DropdownMenuItem(value: 'sound2', child: Text('Sound 2')),
-                DropdownMenuItem(value: 'sound3', child: Text('Sound 3')),
-                DropdownMenuItem(value: 'custom', child: Text('Pilih File...')),
+                DropdownMenuItem(
+                  value: 'sound1',
+                  child: Text('Sound 1'),
+                ),
+                DropdownMenuItem(
+                  value: 'sound2',
+                  child: Text('Sound 2'),
+                ),
+                DropdownMenuItem(
+                  value: 'sound3',
+                  child: Text('Sound 3'),
+                ),
+                DropdownMenuItem(
+                  value: 'custom',
+                  child: Text('Pilih File...'),
+                ),
               ],
               onChanged: (val) async {
                 if (val == 'custom') {
-                  FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.audio);
+                  final result = await FilePicker.platform.pickFiles(
+                    type: FileType.audio,
+                  );
                   if (result != null && result.files.single.path != null) {
-                    settings.setNotificationSound(result.files.single.path!);
+                    await settings.setNotificationSound(
+                      result.files.single.path!,
+                    );
                   }
                 } else if (val != null) {
-                  settings.setNotificationSound(val);
+                  await settings.setNotificationSound(val);
                 }
               },
             ),
@@ -62,26 +93,52 @@ class SettingsScreen extends StatelessWidget {
             subtitle: const Text('Uji notifikasi full-screen'),
             trailing: const Icon(Icons.alarm),
             onTap: () async {
-              await AlarmService.testNow();
-              ScaffoldMessenger.of(context).showSnackBar(
-                constSnackBar(content: Text('Test alarm dipicu!')),
-              );
+              final ok = await AlarmService().testNow();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      ok
+                          ? 'Test alarm dipicu!'
+                          : 'Test alarm gagal dipicu.',
+                    ),
+                  ),
+                );
+              }
             },
           ),
           const Divider(),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text('Backup & Pemulihan', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+            child: Text(
+              'Backup & Pemulihan',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
           ),
           ListTile(
             title: const Text('Backup Data (JSON)'),
             leading: const Icon(Icons.backup),
             onTap: () async {
-              String? path = await BackupService.exportBackup();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(path != null ? 'Backup tersimpan di $path' : 'Gagal backup')),
-                );
+              try {
+                final path = await BackupService().exportAll();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Backup tersimpan di $path'),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Gagal backup: $e'),
+                    ),
+                  );
+                }
               }
             },
           ),
