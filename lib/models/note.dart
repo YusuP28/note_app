@@ -9,6 +9,7 @@ class Note {
   bool isTrashed;
   bool isLocked;
   DateTime? trashedAt;
+  DateTime? reminderAt;
   int sortOrder;
   final DateTime createdAt;
   DateTime updatedAt;
@@ -25,6 +26,7 @@ class Note {
     this.isTrashed = false,
     this.isLocked = false,
     this.trashedAt,
+    this.reminderAt,
     this.sortOrder = 0,
     required this.createdAt,
     required this.updatedAt,
@@ -42,12 +44,14 @@ class Note {
         'is_trashed': isTrashed ? 1 : 0,
         'is_locked': isLocked ? 1 : 0,
         'trashed_at': trashedAt?.millisecondsSinceEpoch,
+        'reminder_at': reminderAt?.millisecondsSinceEpoch,
         'sort_order': sortOrder,
         'created_at': createdAt.millisecondsSinceEpoch,
         'updated_at': updatedAt.millisecondsSinceEpoch,
       };
 
-  factory Note.fromMap(Map<String, dynamic> m, {List<String> tags = const []}) => Note(
+  factory Note.fromMap(Map<String, dynamic> m, {List<String> tags = const []}) =>
+      Note(
         id: m['id'] as String,
         title: (m['title'] as String?) ?? '',
         content: (m['content'] as String?) ?? '',
@@ -59,6 +63,9 @@ class Note {
         isLocked: (m['is_locked'] as int? ?? 0) == 1,
         trashedAt: m['trashed_at'] != null
             ? DateTime.fromMillisecondsSinceEpoch(m['trashed_at'] as int)
+            : null,
+        reminderAt: m['reminder_at'] != null
+            ? DateTime.fromMillisecondsSinceEpoch(m['reminder_at'] as int)
             : null,
         sortOrder: (m['sort_order'] as int?) ?? 0,
         createdAt: DateTime.fromMillisecondsSinceEpoch(m['created_at'] as int),
@@ -78,6 +85,8 @@ class Note {
     bool? isTrashed,
     bool? isLocked,
     DateTime? trashedAt,
+    DateTime? reminderAt,
+    bool clearReminder = false,
     int? sortOrder,
     DateTime? updatedAt,
     List<String>? tagIds,
@@ -93,6 +102,7 @@ class Note {
       isTrashed: isTrashed ?? this.isTrashed,
       isLocked: isLocked ?? this.isLocked,
       trashedAt: trashedAt ?? this.trashedAt,
+      reminderAt: clearReminder ? null : (reminderAt ?? this.reminderAt),
       sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

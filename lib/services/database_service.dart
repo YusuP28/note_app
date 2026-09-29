@@ -9,7 +9,7 @@ class DatabaseService {
 
   static Database? _db;
   static const int _version = 1;
-  static const String _dbName = 'note_app_v3.db'; // bump: schema baru
+  static const String _dbName = 'note_app_v4.db';
 
   Future<Database> get database async {
     if (_db != null) return _db!;
@@ -70,6 +70,7 @@ class DatabaseService {
         is_trashed INTEGER NOT NULL DEFAULT 0,
         is_locked INTEGER NOT NULL DEFAULT 0,
         trashed_at INTEGER,
+        reminder_at INTEGER,
         sort_order INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
@@ -81,6 +82,7 @@ class DatabaseService {
         'CREATE INDEX idx_notes_flags ON notes(is_pinned, is_archived, is_trashed)');
     await db.execute('CREATE INDEX idx_notes_updated ON notes(updated_at DESC)');
     await db.execute('CREATE INDEX idx_notes_title ON notes(title)');
+    await db.execute('CREATE INDEX idx_notes_reminder ON notes(reminder_at)');
 
     await db.execute('''
       CREATE TABLE note_tags (
