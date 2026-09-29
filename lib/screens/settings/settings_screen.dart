@@ -1,245 +1,92 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
-
-import '../../providers/note_provider.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../providers/theme_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../services/backup_service.dart';
 import '../../services/alarm_service.dart';
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
-
-  Future<void> _export(BuildContext context) async {
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final path = await BackupService().exportAll();
-      await Share.shareXFiles([XFile(path)], text: 'Backup Catatanku');
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Gagal export: $e')));
-    }
-  }
-
-  Future<void> _import(BuildContext context) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final np = context.read<NoteProvider>();
-    final result = await FilePicker.platform
-        .pickFiles(type: FileType.custom, allowedExtensions: ['json']);
-    if (result == null || result.files.single.path == null) return;
-
-    final merge = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Mode Import'),
-        content: const Text('Gabung dengan data lama, atau ganti semua?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Ganti')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Gabung')),
-        ],
-      ),
-    );
-    if (merge == null) return;
-
-    try {
-      final count = await BackupService()
-          .importFromFile(result.files.single.path!, merge: merge);
-      await np.load();
-      messenger.showSnackBar(SnackBar(content: Text('$count catatan di-import')));
-    } catch (e) {
-      messenger.showSnackBar(const SnackBar(content: Text('Gagal import: file tidak valid')));
-    }
-  }
-
-  Future<void> _purge(BuildContext context) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final np = context.read<NoteProvider>();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Bersihkan Sampah Lama?'),
-        content: const Text('Hapus permanen catatan yang ada di sampah lebih dari 30 hari.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Bersihkan')),
-        ],
-      ),
-    );
-    if (ok == true) {
-      await np.purgeOldTrash(days: 30);
-      messenger.showSnackBar(const SnackBar(content: Text('Sampah lama dibersihkan')));
-    }
-  }
+  const SettingsScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.watch<ThemeProvider>();
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final settings = Provider.of<SettingsProvider>(context);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Pengaturan')),
       body: ListView(
         children: [
-          const _Section('Tampilan'),
-          ListTile(
-            leading: const Icon(Icons.brightness_6_outlined),
-            title: const Text('Mode Tema'),
-            subtitle: Text(switch (theme.mode) {
-              ThemeMode.system => 'Ikuti Sistem',
-              ThemeMode.light => 'Terang',
-              ThemeMode.dark => 'Gelap',
-            }),
-            onTap: () => _pickMode(context, theme),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text('Tampilan', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
           ),
-          ListTile(
-            leading: const Icon(Icons.color_lens_outlined),
-            title: const Text('Warna Tema'),
-            trailing: CircleAvatar(radius: 12, backgroundColor: theme.seed),
-            onTap: () => _pickColor(context, theme),
+          SwitchListTile(
+            title: const Text('Mode Gelap'),
+            value: themeProvider.isDarkMode,
+            onChanged: (val) => themeProvider.toggleTheme(),
           ),
           const Divider(),
-          const _Section('Data'),
-          ListTile(
-            leading: const Icon(Icons.file_upload_outlined),
-            title: const Text('Export Backup'),
-            subtitle: const Text('Simpan semua data ke JSON'),
-            onTap: () => _export(context),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text('Notifikasi & Alarm', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
           ),
           ListTile(
-            leading: const Icon(Icons.file_download_outlined),
-            title: const Text('Import Backup'),
-            subtitle: const Text('Gabung atau ganti data'),
-            onTap: () => _import(context),
+            title: const Text('Suara Alarm/Notifikasi'),
+            subtitle: Text(settings.notificationSound),
+            trailing: DropdownButton<String>(
+              value: ['sound1', 'sound2', 'sound3'].contains(settings.notificationSound) 
+                  ? settings.notificationSound 
+                  : 'custom',
+              items: const [
+                DropdownMenuItem(value: 'sound1', child: Text('Sound 1')),
+                DropdownMenuItem(value: 'sound2', child: Text('Sound 2')),
+                DropdownMenuItem(value: 'sound3', child: Text('Sound 3')),
+                DropdownMenuItem(value: 'custom', child: Text('Pilih File...')),
+              ],
+              onChanged: (val) async {
+                if (val == 'custom') {
+                  FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.audio);
+                  if (result != null && result.files.single.path != null) {
+                    settings.setNotificationSound(result.files.single.path!);
+                  }
+                } else if (val != null) {
+                  settings.setNotificationSound(val);
+                }
+              },
+            ),
           ),
           ListTile(
-            leading: const Icon(Icons.auto_delete_outlined),
-            title: const Text('Bersihkan Sampah Lama'),
-            subtitle: const Text('Hapus item di sampah > 30 hari'),
-            onTap: () => _purge(context),
+            title: const Text('Test Alarm Sekarang'),
+            subtitle: const Text('Uji notifikasi full-screen'),
+            trailing: const Icon(Icons.alarm),
+            onTap: () async {
+              await AlarmService.testNow();
+              ScaffoldMessenger.of(context).showSnackBar(
+                constSnackBar(content: Text('Test alarm dipicu!')),
+              );
+            },
           ),
           const Divider(),
-          const _Section('Notifikasi'),
-          ListTile(
-            leading: const Icon(Icons.notifications_active_outlined),
-            title: const Text('Test Notifikasi'),
-            subtitle: const Text('Kirim notif sekarang untuk cek fungsi'),
-            onTap: () => _testNotif(context),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text('Backup & Pemulihan', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
           ),
           ListTile(
-            leading: const Icon(Icons.alarm_on_outlined),
-            title: const Text('Izin Exact Alarm'),
-            subtitle: const Text('Izinkan notif tepat waktu (Android 12+)'),
-            onTap: () => _requestExact(context),
-          ),
-          const Divider(),
-          const _Section('Tentang'),
-          const ListTile(
-            leading: Icon(Icons.info_outline),
-            title: Text('Catatanku'),
-            subtitle: Text('Versi 2.0.0'),
+            title: const Text('Backup Data (JSON)'),
+            leading: const Icon(Icons.backup),
+            onTap: () async {
+              String? path = await BackupService.exportBackup();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(path != null ? 'Backup tersimpan di $path' : 'Gagal backup')),
+                );
+              }
+            },
           ),
         ],
       ),
     );
   }
-
-  Future<void> _testNotif(BuildContext context) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final ok = await AlarmService().testNow(
-      title: 'Catatanku',
-      body: 'Notifikasi berfungsi! 🎉',
-    );
-    messenger.showSnackBar(
-      SnackBar(content: Text(ok ? 'Notif terkirim' : 'Gagal kirim notif')),
-    );
-  }
-
-  Future<void> _requestExact(BuildContext context) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final can = await AlarmService().canScheduleExact();
-    if (can) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Izin exact alarm sudah aktif')),
-      );
-      return;
-    }
-    await AlarmService().requestExactPermission();
-    messenger.showSnackBar(
-      const SnackBar(content: Text('Aktifkan izin di halaman Settings')),
-    );
-  }
-
-  Future<void> _pickMode(BuildContext context, ThemeProvider p) async {
-    final m = await showModalBottomSheet<ThemeMode>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-                leading: const Icon(Icons.brightness_auto),
-                title: const Text('Ikuti Sistem'),
-                onTap: () => Navigator.pop(ctx, ThemeMode.system)),
-            ListTile(
-                leading: const Icon(Icons.light_mode),
-                title: const Text('Terang'),
-                onTap: () => Navigator.pop(ctx, ThemeMode.light)),
-            ListTile(
-                leading: const Icon(Icons.dark_mode),
-                title: const Text('Gelap'),
-                onTap: () => Navigator.pop(ctx, ThemeMode.dark)),
-          ],
-        ),
-      ),
-    );
-    if (m != null) await p.setMode(m);
-  }
-
-  Future<void> _pickColor(BuildContext context, ThemeProvider p) async {
-    final colors = <Color>[
-      const Color(0xFF6750A4),
-      const Color(0xFF00695C),
-      const Color(0xFFC62828),
-      const Color(0xFFEF6C00),
-      const Color(0xFF1565C0),
-      const Color(0xFF6A1B9A),
-    ];
-    final c = await showDialog<Color>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Warna Tema'),
-        content: Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: colors
-              .map((color) => GestureDetector(
-                    onTap: () => Navigator.pop(ctx, color),
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.black26),
-                      ),
-                    ),
-                  ))
-              .toList(),
-        ),
-      ),
-    );
-    if (c != null) await p.setSeed(c);
-  }
-}
-
-class _Section extends StatelessWidget {
-  final String text;
-  const _Section(this.text);
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
-        child: Text(text,
-            style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.primary)),
-      );
 }

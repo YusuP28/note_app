@@ -1,47 +1,45 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum SortBy { updatedDesc, updatedAsc, createdDesc, createdAsc, titleAsc, titleDesc }
-enum ViewMode { list, grid }
+class SettingsProvider with ChangeNotifier {
+  String _sortOption = 'updated_desc';
+  bool _isGrid = true;
+  String _notificationSound = 'sound1'; // sound1, sound2, sound3, atau custom path
 
-class SettingsProvider extends ChangeNotifier {
-  static const _kSort = 'sort_by';
-  static const _kView = 'view_mode';
+  String get sortOption => _sortOption;
+  bool get isGrid => _isGrid;
+  String get notificationSound => _notificationSound;
 
-  SortBy _sort = SortBy.updatedDesc;
-  ViewMode _view = ViewMode.list;
+  SettingsProvider() {
+    _loadSettings();
+  }
 
-  SortBy get sort => _sort;
-  ViewMode get view => _view;
-
-  Future<void> load() async {
-    final p = await SharedPreferences.getInstance();
-    final s = p.getString(_kSort);
-    final v = p.getString(_kView);
-
-    _sort = SortBy.values.firstWhere((e) => e.name == s,
-        orElse: () => SortBy.updatedDesc);
-    _view = ViewMode.values.firstWhere((e) => e.name == v,
-        orElse: () => ViewMode.list);
-
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    _sortOption = prefs.getString('sort_option') ?? 'updated_desc';
+    _isGrid = prefs.getBool('is_grid') ?? true;
+    _notificationSound = prefs.getString('notification_sound') ?? 'sound1';
     notifyListeners();
   }
 
-  Future<void> setSort(SortBy s) async {
-    _sort = s;
-    final p = await SharedPreferences.getInstance();
-    await p.setString(_kSort, s.name);
+  Future<void> setSortOption(String option) async {
+    _sortOption = option;
     notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('sort_option', option);
   }
 
-  Future<void> setView(ViewMode v) async {
-    _view = v;
-    final p = await SharedPreferences.getInstance();
-    await p.setString(_kView, v.name);
+  Future<void> toggleViewMode() async {
+    _isGrid = !_isGrid;
     notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('is_grid', _isGrid);
   }
 
-  Future<void> toggleView() async {
-    await setView(_view == ViewMode.list ? ViewMode.grid : ViewMode.list);
+  Future<void> setNotificationSound(String sound) async {
+    _notificationSound = sound;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('notification_sound', sound);
   }
 }
