@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
@@ -24,6 +26,9 @@ class _EditScreenState extends State<EditScreen> {
   bool _isNew = false;
   bool _saving = false;
   DateTime? _reminder;
+  Timer? _draftTimer;
+  static const _draftKeyTitle = 'draft_title';
+  static const _draftKeyContent = 'draft_content';
 
   @override
   void initState() {
@@ -34,10 +39,46 @@ class _EditScreenState extends State<EditScreen> {
     _titleCtrl = TextEditingController(text: _working.title);
     _contentCtrl = TextEditingController(text: _working.content);
     _reminder = _working.reminderAt;
+    _titleCtrl.addListener(_onDraftChange);
+    _contentCtrl.addListener(_onDraftChange);
+    if (_isNew) _restoreDraft();
+  }
+
+  Future<void> _restoreDraft() async {
+    final p = await SharedPreferences.getInstance();
+    final t = p.getString(_draftKeyTitle) ?? '';
+    final c = p.getString(_draftKeyContent) ?? '';
+    if (t.isNotEmpty || c.isNotEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _titleCtrl.text = t;
+        _contentCtrl.text = c;
+      });
+    }
+  }
+
+  void _onDraftChange() {
+    if (!_isNew) return;
+    _draftTimer?.cancel();
+    _draftTimer = Timer(const Duration(seconds: 3), _saveDraft);
+  }
+
+  Future<void> _saveDraft() async {
+    if (!_isNew) return;
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_draftKeyTitle, _titleCtrl.text);
+    await p.setString(_draftKeyContent, _contentCtrl.text);
+  }
+
+  Future<void> _clearDraft() async {
+    final p = await SharedPreferences.getInstance();
+    await p.remove(_draftKeyTitle);
+    await p.remove(_draftKeyContent);
   }
 
   @override
   void dispose() {
+    _draftTimer?.cancel();
     _titleCtrl.dispose();
     _contentCtrl.dispose();
     super.dispose();
@@ -73,6 +114,7 @@ class _EditScreenState extends State<EditScreen> {
         await p.updateNote(_working);
         await p.setReminder(_working, _reminder);
       }
+      await _clearDraft();
       if (mounted) Navigator.pop(context, null);
     } catch (e) {
       if (mounted) {

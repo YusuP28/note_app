@@ -5,6 +5,7 @@ import '../../models/note.dart';
 import '../../providers/note_provider.dart';
 import '../../providers/notebook_provider.dart';
 import '../../providers/tag_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/note_card.dart';
 import '../archive/archive_screen.dart';
@@ -32,7 +33,10 @@ class _HomeScreenState extends State<HomeScreen> {
       _initialized = true;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
-        await context.read<NoteProvider>().load();
+        final s = context.read<SettingsProvider>();
+        final n = context.read<NoteProvider>();
+        n.setSortBy(s.sort);
+        await n.load();
         if (!mounted) return;
         await context.read<NotebookProvider>().load();
         if (!mounted) return;
@@ -88,9 +92,51 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
+  Future<void> _showSortMenu() async {
+    final s = context.read<SettingsProvider>();
+    final n = context.read<NoteProvider>();
+    final picked = await showModalBottomSheet<SortBy>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Urutkan berdasarkan',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
+            _sortTile(ctx, 'Terbaru diubah', SortBy.updatedDesc, s.sort),
+            _sortTile(ctx, 'Terlama diubah', SortBy.updatedAsc, s.sort),
+            _sortTile(ctx, 'Terbaru dibuat', SortBy.createdDesc, s.sort),
+            _sortTile(ctx, 'Terlama dibuat', SortBy.createdAsc, s.sort),
+            _sortTile(ctx, 'Judul A-Z', SortBy.titleAsc, s.sort),
+            _sortTile(ctx, 'Judul Z-A', SortBy.titleDesc, s.sort),
+          ],
+        ),
+      ),
+    );
+    if (picked != null) {
+      await s.setSort(picked);
+      n.setSortBy(picked);
+    }
+  }
+
+  Widget _sortTile(BuildContext ctx, String label, SortBy value, SortBy current) {
+    return ListTile(
+      leading: Icon(
+        value == current ? Icons.radio_button_checked : Icons.radio_button_off,
+        color: value == current ? Theme.of(ctx).colorScheme.primary : null,
+      ),
+      title: Text(label),
+      onTap: () => Navigator.pop(ctx, value),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.watch<NoteProvider>();
+    final s = context.watch<SettingsProvider>();
     final title = switch (p.filter) {
       NoteFilter.all => 'Catatanku',
       NoteFilter.pinned => 'Disematkan',
@@ -102,6 +148,16 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Text(title),
         actions: [
+          IconButton(
+            icon: Icon(s.view == ViewMode.list ? Icons.grid_view : Icons.view_list),
+            tooltip: s.view == ViewMode.list ? 'Grid' : 'List',
+            onPressed: () => s.toggleView(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.sort),
+            tooltip: 'Urutkan',
+            onPressed: _showSortMenu,
+          ),
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () => Navigator.push(
@@ -147,18 +203,40 @@ class _HomeScreenState extends State<HomeScreen> {
                       title: 'Belum ada catatan',
                       subtitle: 'Tap tombol + untuk mulai',
                     )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      itemCount: p.notes.length,
-                      itemBuilder: (_, i) {
-                        final n = p.notes[i];
-                        return NoteCard(
-                          note: n,
-                          onTap: () => _openNote(n),
-                          onLongPress: () => _confirmDelete(n),
-                        );
-                      },
-                    ),
+                  : s.view == ViewMode.grid
+                      ? GridView.builder(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 6, horizontal: 4),
+                          gridDelegate:
+                              const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: 240,
+                            mainAxisSpacing: 4,
+                            crossAxisSpacing: 4,
+                            childAspectRatio: 0.85,
+                          ),
+                          itemCount: p.notes.length,
+                          itemBuilder: (_, i) {
+                            final n = p.notes[i];
+                            return NoteCard(
+                              note: n,
+                              gridMode: true,
+                              onTap: () => _openNote(n),
+                              onLongPress: () => _confirmDelete(n),
+                            );
+                          },
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          itemCount: p.notes.length,
+                          itemBuilder: (_, i) {
+                            final n = p.notes[i];
+                            return NoteCard(
+                              note: n,
+                              onTap: () => _openNote(n),
+                              onLongPress: () => _confirmDelete(n),
+                            );
+                          },
+                        ),
       floatingActionButton: p.filter == NoteFilter.trashed ||
               p.filter == NoteFilter.archived
           ? null
