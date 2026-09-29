@@ -1,7 +1,7 @@
 name: note_app
 description: Aplikasi catatan modern - offline first
 publish_to: 'none'
-version: 2.0.0+3
+version: 2.1.0+4
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -24,6 +24,10 @@ dependencies:
   # File & share
   file_picker: ^8.1.2
   share_plus: ^10.0.2
+
+  # Notifikasi
+  flutter_local_notifications: ^17.2.3
+  timezone: ^0.9.4
 
   # Utils
   intl: ^0.19.0
