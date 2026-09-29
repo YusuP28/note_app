@@ -6,6 +6,16 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'release-split'
+        type: choice
+        options:
+          - debug
+          - release-split
+          - release-full
 
 jobs:
   build:
@@ -32,33 +42,58 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Determine build mode
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${{ github.event.inputs.build_type }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "mode=release-split" >> $GITHUB_OUTPUT
+          else
+            echo "mode=debug" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build APK (debug)
-        if: "!startsWith(github.ref, 'refs/tags/v')"
+        if: steps.mode.outputs.mode == 'debug'
         run: flutter build apk --debug
 
-      - name: Build APK (release, split-per-abi)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Build APK (release split-per-abi)
+        if: steps.mode.outputs.mode == 'release-split'
         run: |
           flutter build apk --release \
             --split-per-abi \
             --obfuscate \
             --split-debug-info=build/debug-info
 
+      - name: Build APK (release full, universal)
+        if: steps.mode.outputs.mode == 'release-full'
+        run: |
+          flutter build apk --release \
+            --obfuscate \
+            --split-debug-info=build/debug-info
+
       - name: Upload Debug APK
-        if: "!startsWith(github.ref, 'refs/tags/v')"
+        if: steps.mode.outputs.mode == 'debug'
         uses: actions/upload-artifact@v4
         with:
           name: note-app-debug
           path: build/app/outputs/flutter-apk/app-debug.apk
 
-      - name: Upload Release APKs (split-per-abi)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Upload Release APKs (split)
+        if: steps.mode.outputs.mode == 'release-split'
+        uses: actions/upload-artifact@v4
+        with:
+          name: note-app-release-split
+          path: build/app/outputs/flutter-apk/app-*-release.apk
+
+      - name: Upload Release APK (universal)
+        if: steps.mode.outputs.mode == 'release-full'
         uses: actions/upload-artifact@v4
         with:
           name: note-app-release
-          path: build/app/outputs/flutter-apk/app-*-release.apk
+          path: build/app/outputs/flutter-apk/app-release.apk
 
-      - name: Attach APKs to Release
+      - name: Attach APKs to Release (only on tag)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
