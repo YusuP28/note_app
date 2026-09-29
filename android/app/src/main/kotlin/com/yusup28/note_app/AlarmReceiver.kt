@@ -10,15 +10,18 @@ import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 
 class AlarmReceiver : BroadcastReceiver() {
 
     companion object {
-        const val CHANNEL_ID = "note_app_alarm_v1"
+        // Bump channel ID supaya channel lama (tanpa sound) di-recreate
+        const val CHANNEL_ID = "note_app_alarm_v2"
         const val CHANNEL_NAME = "Pengingat Catatan"
         const val CHANNEL_DESC = "Notifikasi pengingat seperti alarm"
+        private const val TAG = "AlarmReceiver"
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -26,9 +29,10 @@ class AlarmReceiver : BroadcastReceiver() {
         val title = intent.getStringExtra("title") ?: "Pengingat"
         val body = intent.getStringExtra("body") ?: "Waktunya buka catatan"
 
+        Log.d(TAG, "Alarm fired: $noteId $title")
+
         createChannel(context)
 
-        // Intent buka app saat notif ditap
         val openIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("noteId", noteId)
@@ -39,8 +43,6 @@ class AlarmReceiver : BroadcastReceiver() {
             openIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-
-        // Full-screen intent — muncul seperti alarm saat layar terkunci
         val fullScreenIntent = PendingIntent.getActivity(
             context,
             noteId.hashCode() + 1,
@@ -48,8 +50,16 @@ class AlarmReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val soundUri: Uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        // Sound URI: coba ALARM → RINGTONE → NOTIFICATION
+        val soundUri: Uri = try {
+            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        } catch (e: Exception) {
+            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        }
+
+        Log.d(TAG, "Sound URI: $soundUri")
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
@@ -60,24 +70,38 @@ class AlarmReceiver : BroadcastReceiver() {
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setSound(soundUri)
-            .setVibrate(longArrayOf(0, 500, 300, 500, 300, 500))
+            .setVibrate(longArrayOf(0, 800, 400, 800, 400, 800))
             .setAutoCancel(true)
-            .setOngoing(false)
             .setContentIntent(pendingIntent)
             .setFullScreenIntent(fullScreenIntent, true)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setOnlyAlertOnce(false)
             .build()
 
         try {
             NotificationManagerCompat.from(context).notify(noteId.hashCode(), notification)
-        } catch (_: SecurityException) {
+            Log.d(TAG, "Notification posted OK")
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Post failed: ${e.message}")
         }
     }
 
     private fun createChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val mgr = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // Hapus channel lama (v1 kalau ada) — biar user tidak stuck dengan config lama
+        try { mgr.deleteNotificationChannel("note_app_alarm_v1") } catch (_: Exception) {}
+
         if (mgr.getNotificationChannel(CHANNEL_ID) != null) return
+
+        val soundUri: Uri = try {
+            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        } catch (e: Exception) {
+            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        }
 
         val channel = NotificationChannel(
             CHANNEL_ID,
@@ -86,13 +110,12 @@ class AlarmReceiver : BroadcastReceiver() {
         ).apply {
             description = CHANNEL_DESC
             enableVibration(true)
-            vibrationPattern = longArrayOf(0, 500, 300, 500, 300, 500)
+            vibrationPattern = longArrayOf(0, 800, 400, 800, 400, 800)
             enableLights(true)
+            lightColor = 0xFF6750A4.toInt()
             setShowBadge(true)
             lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
 
-            val soundUri: Uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             val attrs = AudioAttributes.Builder()
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                 .setUsage(AudioAttributes.USAGE_ALARM)
@@ -100,5 +123,6 @@ class AlarmReceiver : BroadcastReceiver() {
             setSound(soundUri, attrs)
         }
         mgr.createNotificationChannel(channel)
+        Log.d(TAG, "Channel created: $CHANNEL_ID with sound $soundUri")
     }
 }
