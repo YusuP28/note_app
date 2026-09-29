@@ -27,8 +27,8 @@ class _EditScreenState extends State<EditScreen> {
   bool _saving = false;
   DateTime? _reminder;
   Timer? _draftTimer;
-  static const _draftKeyTitle = 'draft_title';
-  static const _draftKeyContent = 'draft_content';
+  late final String _draftKeyTitle;
+  late final String _draftKeyContent;
 
   @override
   void initState() {
@@ -39,6 +39,8 @@ class _EditScreenState extends State<EditScreen> {
     _titleCtrl = TextEditingController(text: _working.title);
     _contentCtrl = TextEditingController(text: _working.content);
     _reminder = _working.reminderAt;
+    _draftKeyTitle = 'draft_${_working.id}_title';
+    _draftKeyContent = 'draft_${_working.id}_content';
     _titleCtrl.addListener(_onDraftChange);
     _contentCtrl.addListener(_onDraftChange);
     if (_isNew) _restoreDraft();
@@ -107,11 +109,15 @@ class _EditScreenState extends State<EditScreen> {
         if (_working.color != null) created.color = _working.color;
         created.tagIds = List.from(_working.tagIds);
         await p.updateNote(created);
-        if (_reminder != null) await p.setReminder(created, _reminder);
+        // Set reminder kalau ada (setelah updateNote supaya field tidak tertimpa)
+        if (_reminder != null) {
+          await p.setReminder(created, _reminder);
+        }
       } else {
         _working.title = title.isEmpty ? 'Tanpa Judul' : title;
         _working.content = content;
         await p.updateNote(_working);
+        // Selalu panggil setReminder (handle set/clear)
         await p.setReminder(_working, _reminder);
       }
       await _clearDraft();
@@ -280,6 +286,9 @@ class _EditScreenState extends State<EditScreen> {
       date.day,
       time.hour,
       time.minute,
+      0,
+      0,
+      0,
     );
 
     if (picked.isBefore(DateTime.now())) {

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 class NotificationService {
@@ -16,11 +16,22 @@ class NotificationService {
   static const _channelDesc = 'Notifikasi pengingat untuk catatan';
 
   Future<void> init() async {
-    if (kIsWeb) return; // skip di web
+    if (kIsWeb) return;
     if (_inited) return;
     _inited = true;
 
-    tz.initializeTimeZones();
+    tzdata.initializeTimeZones();
+
+    // Set local timezone: coba Asia/Jakarta sebagai default Indonesia
+    try {
+      tz.setLocalLocation(tz.getLocation('Asia/Jakarta'));
+      debugPrint('TZ set: Asia/Jakarta');
+    } catch (e) {
+      debugPrint('TZ set failed: $e, fallback UTC');
+      try {
+        tz.setLocalLocation(tz.getLocation('UTC'));
+      } catch (_) {}
+    }
 
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const initSettings = InitializationSettings(android: androidInit);
@@ -34,8 +45,9 @@ class NotificationService {
 
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
-    await android?.requestNotificationsPermission();
-    await android?.requestExactAlarmsPermission();
+    final notifOk = await android?.requestNotificationsPermission();
+    final exactOk = await android?.requestExactAlarmsPermission();
+    debugPrint('Permission notif=$notifOk exact=$exactOk');
   }
 
   NotificationDetails get _details => const NotificationDetails(
@@ -43,9 +55,11 @@ class NotificationService {
           _channelId,
           _channelName,
           channelDescription: _channelDesc,
-          importance: Importance.high,
-          priority: Priority.high,
+          importance: Importance.max,
+          priority: Priority.max,
           icon: '@mipmap/ic_launcher',
+          enableVibration: true,
+          playSound: true,
         ),
       );
 
@@ -56,15 +70,21 @@ class NotificationService {
     required DateTime when,
   }) async {
     if (kIsWeb) return;
-    if (when.isBefore(DateTime.now())) return;
+    if (when.isBefore(DateTime.now())) {
+      debugPrint('Skip schedule: waktu sudah lewat');
+      return;
+    }
 
     final id = _idFromString(noteId);
     final whenTz = tz.TZDateTime.from(when, tz.local);
 
+    debugPrint('Schedule: id=$id when=$when whenTz=$whenTz tzLocal=${tz.local}');
+
+    // Coba exact dulu
     try {
       await _plugin.zonedSchedule(
         id,
-        title.isEmpty ? 'Pengingat' : title,
+        title.isEmpty ? 'Pengingat Catatan' : title,
         body,
         whenTz,
         _details,
@@ -73,24 +93,37 @@ class NotificationService {
             UILocalNotificationDateInterpretation.absoluteTime,
         payload: noteId,
       );
-      debugPrint('Scheduled notif id=$id at $when');
+      debugPrint('✓ Scheduled EXACT id=$id');
+      return;
     } catch (e) {
-      debugPrint('Schedule ERROR: $e');
-      try {
-        await _plugin.zonedSchedule(
-          id,
-          title.isEmpty ? 'Pengingat' : title,
-          body,
-          whenTz,
-          _details,
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-          payload: noteId,
-        );
-      } catch (e2) {
-        debugPrint('Schedule fallback ERROR: $e2');
-      }
+      debugPrint('Exact schedule FAILED: $e');
+    }
+
+    // Fallback 1: inexact
+    try {
+      await _plugin.zonedSchedule(
+        id,
+        title.isEmpty ? 'Pengingat Catatan' : title,
+        body,
+        whenTz,
+        _details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: noteId,
+      );
+      debugPrint('✓ Scheduled INEXACT id=$id');
+      return;
+    } catch (e) {
+      debugPrint('Inexact FAILED: $e');
+    }
+
+    // Fallback 2: show immediate (untuk debug)
+    debugPrint('!!! Semua schedule gagal, coba show immediate');
+    try {
+      await _plugin.show(id, 'DEBUG: $title', body, _details);
+    } catch (e) {
+      debugPrint('Show immediate FAILED: $e');
     }
   }
 
@@ -102,6 +135,11 @@ class NotificationService {
   Future<void> cancelAll() async {
     if (kIsWeb) return;
     await _plugin.cancelAll();
+  }
+
+  Future<List<PendingNotificationRequest>> pending() async {
+    if (kIsWeb) return [];
+    return await _plugin.pendingNotificationRequests();
   }
 
   int _idFromString(String s) {

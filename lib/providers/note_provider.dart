@@ -201,11 +201,14 @@ class NoteProvider extends ChangeNotifier {
   }
 
   Future<void> setReminder(Note note, DateTime? when) async {
+    // Set field dulu, baru update DB + notify
     note.reminderAt = when;
     await updateNote(note);
 
+    // Schedule notif SETELAH update (biar indicator & notif sinkron)
     if (when == null) {
       await _notif.cancel(note.id);
+      debugPrint('Reminder cleared for ${note.id}');
     } else {
       await _notif.schedule(
         noteId: note.id,
@@ -217,6 +220,7 @@ class NoteProvider extends ChangeNotifier {
                 : note.content),
         when: when,
       );
+      debugPrint('Reminder set for ${note.id} at $when');
     }
   }
 
