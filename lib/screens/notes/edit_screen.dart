@@ -328,10 +328,10 @@ class _EditScreenState extends State<EditScreen> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: quill.QuillEditor.basic(
-                  controller: _contentCtrl,
                   focusNode: _focusNode,
                   scrollController: _scrollCtrl,
-                  configurations: const quill.QuillEditorConfigurations(
+                  configurations: quill.QuillEditorConfigurations(
+                    controller: _contentCtrl,
                     placeholder: 'Tulis catatan di sini...',
                     padding: EdgeInsets.zero,
                     autoFocus: false,
