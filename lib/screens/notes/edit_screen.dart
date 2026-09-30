@@ -13,6 +13,7 @@ import '../../providers/tag_provider.dart';
 import '../../utils/date_utils.dart';
 import '../../services/quill_image_service.dart';
 import '../../widgets/image_picker_sheet.dart';
+import '../../widgets/local_image_embed.dart';
 
 class EditScreen extends StatefulWidget {
   final Note? note;
@@ -336,6 +337,7 @@ class _EditScreenState extends State<EditScreen> {
                     padding: EdgeInsets.zero,
                     autoFocus: false,
                     expands: true,
+                    embedBuilders: [LocalImageEmbedBuilder()],
                   ),
                 ),
               ),
