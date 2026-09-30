@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:provider/provider.dart';
@@ -13,6 +13,7 @@ import '../../providers/notebook_provider.dart';
 import '../../providers/tag_provider.dart';
 import '../../utils/date_utils.dart';
 import '../../services/quill_image_service.dart';
+import '../../services/image_attachment_service.dart';
 import '../../widgets/image_picker_sheet.dart';
 import '../../widgets/local_image_embed.dart';
 
@@ -52,9 +53,9 @@ class _EditScreenState extends State<EditScreen> {
     _reminder = _working.reminderAt;
     _bgImagePath = _working.bgImagePath;
     _bgOpacity = _working.bgOpacity;
+
     _draftKeyTitle = 'draft_${_working.id}_title';
     _draftKeyContent = 'draft_${_working.id}_content';
-
     _titleCtrl.addListener(_onDraftChange);
     _contentCtrl.addListener(_onDraftChange);
     if (_isNew) _restoreDraft();
@@ -134,7 +135,7 @@ class _EditScreenState extends State<EditScreen> {
     final delta = _deltaJson();
     final plain = _plainText();
 
-    if (title.isEmpty && plain.isEmpty) {
+    if (title.isEmpty && plain.isEmpty && _bgImagePath == null) {
       await _clearDraft();
       _saving = false;
       return true;
@@ -151,6 +152,8 @@ class _EditScreenState extends State<EditScreen> {
         created.plainText = plain;
         if (_working.color != null) created.color = _working.color;
         created.tagIds = List.from(_working.tagIds);
+        created.bgImagePath = _bgImagePath;
+        created.bgOpacity = _bgOpacity;
         await p.updateNote(created);
         if (_reminder != null) await p.setReminder(created, _reminder);
         _working = created;
@@ -159,6 +162,8 @@ class _EditScreenState extends State<EditScreen> {
         _working.title = title.isEmpty ? 'Tanpa Judul' : title;
         _working.content = delta;
         _working.plainText = plain;
+        _working.bgImagePath = _bgImagePath;
+        _working.bgOpacity = _bgOpacity;
         await p.updateNote(_working);
         await p.setReminder(_working, _reminder);
       }
@@ -194,6 +199,67 @@ class _EditScreenState extends State<EditScreen> {
     }
   }
 
+  Future<void> _pickBackgroundImage() async {
+    final source = await showImageSourceSheet(context);
+    if (source == null) return;
+    String? path;
+    if (source == 'gallery') {
+      final files = await ImageAttachmentService().pickFromGallery();
+      if (files.isNotEmpty) path = files.first;
+    } else {
+      path = await ImageAttachmentService().pickFromCamera();
+    }
+    if (path != null) {
+      setState(() => _bgImagePath = path);
+    }
+  }
+
+  void _showOpacitySlider() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Transparansi Background',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.brightness_low, size: 18),
+                  Expanded(
+                    child: Slider(
+                      value: _bgOpacity,
+                      min: 0.0,
+                      max: 1.0,
+                      divisions: 20,
+                      label: '${(_bgOpacity * 100).round()}%',
+                      onChanged: (v) {
+                        setLocal(() {});
+                        setState(() => _bgOpacity = v);
+                      },
+                    ),
+                  ),
+                  const Icon(Icons.brightness_high, size: 18),
+                ],
+              ),
+              Center(
+                child: Text('${(_bgOpacity * 100).round()}%',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 12),
+              const Text('Semakin kecil % → gambar lebih transparan',
+                  style: TextStyle(fontSize: 11, color: Colors.grey)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final notebooks = context.watch<NotebookProvider>();
@@ -214,8 +280,6 @@ class _EditScreenState extends State<EditScreen> {
       },
       child: Scaffold(
         backgroundColor: editorBg,
-        // Background image overlay via body
-        // (di bawah, di dalam body)
         appBar: AppBar(
           backgroundColor: editorBg,
           foregroundColor: textColor,
@@ -282,6 +346,7 @@ class _EditScreenState extends State<EditScreen> {
         ),
         body: Stack(
           children: [
+            // Background image
             if (_bgImagePath != null)
               Positioned.fill(
                 child: Opacity(
@@ -293,87 +358,90 @@ class _EditScreenState extends State<EditScreen> {
                   ),
                 ),
               ),
+            // Main content
             Column(
-          children: [
-            if (_reminder != null)
-              Container(
-                margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: textColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: textColor.withOpacity(0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.alarm, size: 16, color: textColor),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Pengingat: ${AppDate.full(_reminder!)}',
-                        style: TextStyle(fontSize: 12, color: textColor),
-                      ),
+              children: [
+                if (_reminder != null)
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: textColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: textColor.withOpacity(0.3)),
                     ),
-                    IconButton(
-                      icon: Icon(Icons.close, size: 16, color: textColor),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: () => setState(() => _reminder = null),
+                    child: Row(
+                      children: [
+                        Icon(Icons.alarm, size: 16, color: textColor),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Pengingat: ${AppDate.full(_reminder!)}',
+                            style: TextStyle(fontSize: 12, color: textColor),
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.close, size: 16, color: textColor),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => setState(() => _reminder = null),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: TextField(
-                controller: _titleCtrl,
-                cursorColor: textColor,
-                decoration: InputDecoration(
-                  hintText: 'Judul...',
-                  hintStyle: TextStyle(color: textColor.withOpacity(0.55)),
-                  border: InputBorder.none,
-                ),
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
-              ),
-            ),
-            Divider(color: dividerColor),
-            quill.QuillSimpleToolbar(
-              configurations: quill.QuillSimpleToolbarConfigurations(
-                controller: _contentCtrl,
-                multiRowsDisplay: false,
-                showUndo: true,
-                showRedo: true,
-                showBoldButton: true,
-                showItalicButton: true,
-                showUnderLineButton: true,
-                showStrikeThrough: true,
-                showListBullets: true,
-                showListNumbers: true,
-                showListCheck: true,
-                showHeaderStyle: true,
-                showInlineCode: false,
-                showClearFormat: true,
-              ),
-            ),
-            Divider(height: 1, color: dividerColor),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: quill.QuillEditor.basic(
-                  focusNode: _focusNode,
-                  scrollController: _scrollCtrl,
-                  configurations: quill.QuillEditorConfigurations(
-                    controller: _contentCtrl,
-                    placeholder: 'Tulis catatan di sini...',
-                    padding: EdgeInsets.zero,
-                    autoFocus: false,
-                    expands: true,
-                    embedBuilders: [LocalImageEmbedBuilder()],
+                  ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: TextField(
+                    controller: _titleCtrl,
+                    cursorColor: textColor,
+                    decoration: InputDecoration(
+                      hintText: 'Judul...',
+                      hintStyle: TextStyle(color: textColor.withOpacity(0.55)),
+                      border: InputBorder.none,
+                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
                   ),
                 ),
-              ),
+                Divider(color: dividerColor),
+                quill.QuillSimpleToolbar(
+                  configurations: quill.QuillSimpleToolbarConfigurations(
+                    controller: _contentCtrl,
+                    multiRowsDisplay: false,
+                    showUndo: true,
+                    showRedo: true,
+                    showBoldButton: true,
+                    showItalicButton: true,
+                    showUnderLineButton: true,
+                    showStrikeThrough: true,
+                    showListBullets: true,
+                    showListNumbers: true,
+                    showListCheck: true,
+                    showHeaderStyle: true,
+                    showInlineCode: false,
+                    showClearFormat: true,
+                  ),
+                ),
+                Divider(height: 1, color: dividerColor),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: quill.QuillEditor.basic(
+                      focusNode: _focusNode,
+                      scrollController: _scrollCtrl,
+                      configurations: quill.QuillEditorConfigurations(
+                        controller: _contentCtrl,
+                        placeholder: 'Tulis catatan di sini...',
+                        padding: EdgeInsets.zero,
+                        autoFocus: false,
+                        expands: true,
+                        embedBuilders: [LocalImageEmbedBuilder()],
+                      ),
+                    ),
+                  ),
+                ),
+                if (_working.tagIds.isNotEmpty) _tagChips(tags, textColor),
+              ],
             ),
-            if (_working.tagIds.isNotEmpty) _tagChips(tags, textColor),
           ],
         ),
       ),
@@ -402,74 +470,6 @@ class _EditScreenState extends State<EditScreen> {
               );
             })
             .toList(),
-      ),
-    );
-  }
-
-  Future<void> _pickBackgroundImage() async {
-    final source = await showImageSourceSheet(context);
-    if (source == null) return;
-    String? path;
-    if (source == 'gallery') {
-      final files = await ImageAttachmentService().pickFromGallery();
-      if (files.isNotEmpty) path = files.first;
-    } else {
-      path = await ImageAttachmentService().pickFromCamera();
-    }
-    if (path != null) {
-      setState(() => _bgImagePath = path);
-    }
-  }
-
-  void _clearBackground() {
-    setState(() {
-      _bgImagePath = null;
-      _bgOpacity = 0.3;
-    });
-  }
-
-  void _showOpacitySlider() {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) => Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Transparansi Background',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  const Icon(Icons.brightness_low, size: 18),
-                  Expanded(
-                    child: Slider(
-                      value: _bgOpacity,
-                      min: 0.0,
-                      max: 1.0,
-                      divisions: 20,
-                      label: '${(_bgOpacity * 100).round()}%',
-                      onChanged: (v) {
-                        setLocal(() {});
-                        setState(() => _bgOpacity = v);
-                      },
-                    ),
-                  ),
-                  const Icon(Icons.brightness_high, size: 18),
-                ],
-              ),
-              Center(
-                child: Text('${(_bgOpacity * 100).round()}%',
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(height: 12),
-              const Text('Semakin kecil % → gambar lebih transparan',
-                  style: TextStyle(fontSize: 11, color: Colors.grey)),
-            ],
-          ),
-        ),
       ),
     );
   }
