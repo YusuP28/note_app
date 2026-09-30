@@ -355,6 +355,46 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+
+  PreferredSizeWidget _buildSelectionAppBar(BuildContext context, NoteProvider p) {
+    return AppBar(
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: _exitSelectionMode,
+      ),
+      title: Text('${_selectedIds.length} dipilih'),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.select_all),
+          tooltip: 'Pilih Semua',
+          onPressed: () {
+            setState(() {
+              if (_selectedIds.length == p.notes.length) {
+                _selectedIds.clear();
+              } else {
+                _selectedIds.addAll(p.notes.map((n) => n.id));
+              }
+            });
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.push_pin_outlined),
+          tooltip: 'Sematkan',
+          onPressed: _selectedIds.isEmpty ? null : _pinSelected,
+        ),
+        IconButton(
+          icon: const Icon(Icons.archive_outlined),
+          tooltip: 'Arsipkan',
+          onPressed: _selectedIds.isEmpty ? null : _archiveSelected,
+        ),
+        IconButton(
+          icon: const Icon(Icons.delete_outline),
+          tooltip: 'Hapus',
+          onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
+        ),
+      ],
+    );
+  }
   Widget _buildDrawer(BuildContext context, NoteProvider p) {
     return Drawer(
       child: SafeArea(
