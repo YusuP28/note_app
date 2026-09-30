@@ -7,6 +7,8 @@ class NoteCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onLongPress;
   final bool gridMode;
+  final bool selected;
+  final bool selectionMode;
 
   const NoteCard({
     super.key,
@@ -14,6 +16,8 @@ class NoteCard extends StatelessWidget {
     required this.onTap,
     required this.onLongPress,
     this.gridMode = false,
+    this.selected = false,
+    this.selectionMode = false,
   });
 
   @override
@@ -26,7 +30,10 @@ class NoteCard extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: scheme.outlineVariant, width: 0.6),
+        side: BorderSide(
+          color: selected ? scheme.primary : scheme.outlineVariant,
+          width: selected ? 2.5 : 0.6,
+        ),
       ),
       margin: EdgeInsets.symmetric(
         vertical: 4,
@@ -59,6 +66,15 @@ class NoteCard extends StatelessWidget {
                   ),
                   if (note.isLocked)
                     Icon(Icons.lock_outline, size: 14, color: scheme.primary),
+                  if (selectionMode)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 6),
+                      child: Icon(
+                        selected ? Icons.check_circle : Icons.radio_button_unchecked,
+                        size: 18,
+                        color: selected ? scheme.primary : scheme.outline,
+                      ),
+                    ),
                 ],
               ),
               if (note.plainText.isNotEmpty) ...[

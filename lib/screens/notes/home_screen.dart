@@ -324,6 +324,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             return NoteCard(
                               note: n,
                               gridMode: true,
+                              selected: _selectedIds.contains(n.id),
+                              selectionMode: _selectionMode,
                               onTap: _selectionMode ? () => _toggleSelection(n.id) : () => _openNote(n),
                               onLongPress: _selectionMode ? () => _toggleSelection(n.id) : () => _showContextMenu(n),
                             );
@@ -336,6 +338,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             final n = p.notes[i];
                             return NoteCard(
                               note: n,
+                              selected: _selectedIds.contains(n.id),
+                              selectionMode: _selectionMode,
                               onTap: _selectionMode ? () => _toggleSelection(n.id) : () => _openNote(n),
                               onLongPress: _selectionMode ? () => _toggleSelection(n.id) : () => _showContextMenu(n),
                             );
