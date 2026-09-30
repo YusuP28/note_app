@@ -51,6 +51,7 @@ class _EditScreenState extends State<EditScreen> {
         Note(id: '', createdAt: DateTime.now(), updatedAt: DateTime.now());
     _titleCtrl = TextEditingController(text: _working.title);
     _contentCtrl = _buildQuillController(_working.content);
+    if (widget.readOnly) _contentCtrl.readOnly = true;
 
     _reminder = _working.reminderAt;
     _bgImagePath = _working.bgImagePath;
@@ -503,7 +504,6 @@ class _EditScreenState extends State<EditScreen> {
                       scrollController: _scrollCtrl,
                       configurations: quill.QuillEditorConfigurations(
                         controller: _contentCtrl,
-                        readOnly: widget.readOnly,
                         placeholder: widget.readOnly ? '' : 'Tulis catatan di sini...',
                         padding: EdgeInsets.zero,
                         autoFocus: false,
