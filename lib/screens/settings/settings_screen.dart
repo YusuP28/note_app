@@ -125,6 +125,41 @@ class SettingsScreen extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const DriveBackupScreen()),
             ),
           ),
+          ListTile(
+            leading: const Icon(Icons.schedule),
+            title: const Text('Auto-Backup Otomatis'),
+            subtitle: Text(
+              settings.autoBackupEnabled
+                  ? 'Setiap ${settings.autoBackupDays} hari sekali'
+                  : 'Nonaktif',
+            ),
+            trailing: DropdownButton<int>(
+              value: settings.autoBackupDays,
+              items: const [
+                DropdownMenuItem(value: 0, child: Text('Off')),
+                DropdownMenuItem(value: 1, child: Text('1 hari')),
+                DropdownMenuItem(value: 2, child: Text('2 hari')),
+                DropdownMenuItem(value: 3, child: Text('3 hari')),
+                DropdownMenuItem(value: 4, child: Text('4 hari')),
+                DropdownMenuItem(value: 5, child: Text('5 hari')),
+                DropdownMenuItem(value: 6, child: Text('6 hari')),
+                DropdownMenuItem(value: 7, child: Text('7 hari')),
+              ],
+              onChanged: (val) async {
+                if (val != null) await settings.setAutoBackupDays(val);
+              },
+            ),
+          ),
+          if (settings.autoBackupEnabled)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Text(
+                settings.lastAutoBackup == null
+                    ? 'Belum pernah backup otomatis'
+                    : 'Terakhir: ${settings.lastAutoBackup}',
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+            ),
 
           const Divider(),
 

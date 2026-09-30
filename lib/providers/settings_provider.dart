@@ -16,14 +16,23 @@ class SettingsProvider extends ChangeNotifier {
   static const _kSort = 'sort_by';
   static const _kView = 'view_mode';
   static const _kSound = 'notification_sound';
+  static const _kAutoBackupDays = 'auto_backup_days';
+  static const _kLastAutoBackup = 'last_auto_backup';
 
   SortBy _sort = SortBy.updatedDesc;
   ViewMode _view = ViewMode.list;
   String _notificationSound = 'sound1';
+  int _autoBackupDays = 0; // 0 = off
+  int _lastAutoBackupMs = 0;
 
   SortBy get sort => _sort;
   ViewMode get view => _view;
   String get notificationSound => _notificationSound;
+  int get autoBackupDays => _autoBackupDays;
+  bool get autoBackupEnabled => _autoBackupDays > 0;
+  DateTime? get lastAutoBackup => _lastAutoBackupMs > 0
+      ? DateTime.fromMillisecondsSinceEpoch(_lastAutoBackupMs)
+      : null;
 
   // Alias untuk kompatibilitas (kalau ada yang pakai isGrid)
   bool get isGrid => _view == ViewMode.grid;
@@ -44,6 +53,8 @@ class SettingsProvider extends ChangeNotifier {
       orElse: () => ViewMode.list,
     );
     _notificationSound = snd ?? 'sound1';
+    _autoBackupDays = p.getInt(_kAutoBackupDays) ?? 0;
+    _lastAutoBackupMs = p.getInt(_kLastAutoBackup) ?? 0;
 
     notifyListeners();
   }
@@ -64,6 +75,28 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> toggleView() async {
     await setView(_view == ViewMode.list ? ViewMode.grid : ViewMode.list);
+  }
+
+  Future<void> setAutoBackupDays(int days) async {
+    _autoBackupDays = days;
+    final p = await SharedPreferences.getInstance();
+    await p.setInt(_kAutoBackupDays, days);
+    notifyListeners();
+  }
+
+  Future<void> setLastAutoBackup(DateTime t) async {
+    _lastAutoBackupMs = t.millisecondsSinceEpoch;
+    final p = await SharedPreferences.getInstance();
+    await p.setInt(_kLastAutoBackup, _lastAutoBackupMs);
+    notifyListeners();
+  }
+
+  /// Cek apakah harus auto-backup sekarang
+  bool shouldAutoBackup() {
+    if (!autoBackupEnabled) return false;
+    final last = lastAutoBackup;
+    if (last == null) return true;
+    return DateTime.now().difference(last).inDays >= _autoBackupDays;
   }
 
   Future<void> setNotificationSound(String sound) async {

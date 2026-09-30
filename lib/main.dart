@@ -7,11 +7,13 @@ import 'providers/notebook_provider.dart';
 import 'providers/tag_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/settings_provider.dart';
+import 'services/google_drive_service.dart';
 import 'screens/notes/home_screen.dart';
 import 'screens/alarm/alarm_page_screen.dart';
 import 'services/migration_service.dart';
 import 'services/backup_service.dart';
 import 'services/alarm_service.dart';
+import 'services/auto_backup_service.dart';
 import 'themes/app_theme.dart';
 import 'utils/locale_init.dart';
 
@@ -20,6 +22,16 @@ Future<void> main() async {
   await initLocale();
   await MigrationService().migrateIfNeeded();
   await BackupService().autoBackup();
+
+  // Siapkan auto-backup service — dijalankan setelah UI muncul
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    final sp = SettingsProvider();
+    await sp.load();
+    final gd = GoogleDriveService();
+    await gd.signInSilently();
+    await AutoBackupService().checkAndRun(sp);
+  });
+
   runApp(const NoteApp());
 }
 

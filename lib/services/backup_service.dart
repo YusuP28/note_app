@@ -79,6 +79,11 @@ class BackupService {
   }
 
   /// Import dari file JSON backup v2. [merge]=true → gabung, false → replace.
+  /// Baca isi file JSON
+  Future<String> readFile(String path) async {
+    return await File(path).readAsString();
+  }
+
   /// Tulis JSON string ke temp file, return path
   Future<String> writeTempJson(String content) async {
     final dir = await getTemporaryDirectory();
