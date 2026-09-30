@@ -9,6 +9,10 @@ import '../../providers/note_provider.dart';
 import '../../providers/notebook_provider.dart';
 import '../../providers/tag_provider.dart';
 import '../../utils/date_utils.dart';
+import '../../services/image_attachment_service.dart';
+import '../../widgets/image_picker_sheet.dart';
+import '../../widgets/image_thumbnail.dart';
+import 'dart:io';
 
 class EditScreen extends StatefulWidget {
   final Note? note;
@@ -25,6 +29,7 @@ class _EditScreenState extends State<EditScreen> {
   bool _isNew = false;
   bool _saving = false;
   DateTime? _reminder;
+  late List<String> _attachments;
   Timer? _draftTimer;
   late final String _draftKeyTitle;
   late final String _draftKeyContent;
@@ -38,6 +43,7 @@ class _EditScreenState extends State<EditScreen> {
     _titleCtrl = TextEditingController(text: _working.title);
     _contentCtrl = TextEditingController(text: _working.content);
     _reminder = _working.reminderAt;
+    _attachments = List.from(_working.attachments);
     _draftKeyTitle = 'draft_${_working.id}_title';
     _draftKeyContent = 'draft_${_working.id}_content';
     _titleCtrl.addListener(_onDraftChange);
@@ -108,6 +114,7 @@ class _EditScreenState extends State<EditScreen> {
         );
         if (_working.color != null) created.color = _working.color;
         created.tagIds = List.from(_working.tagIds);
+        created.attachments = List.from(_attachments);
         await p.updateNote(created);
         if (_reminder != null) await p.setReminder(created, _reminder);
         _working = created;
@@ -115,6 +122,7 @@ class _EditScreenState extends State<EditScreen> {
       } else {
         _working.title = title.isEmpty ? 'Tanpa Judul' : title;
         _working.content = content;
+        _working.attachments = List.from(_attachments);
         await p.updateNote(_working);
         await p.setReminder(_working, _reminder);
       }
@@ -312,6 +320,62 @@ class _EditScreenState extends State<EditScreen> {
               );
             })
             .toList(),
+      ),
+    );
+  }
+
+  Future<void> _pickImage() async {
+    final source = await showImageSourceSheet(context);
+    if (source == null) return;
+
+    setState(() => _saving = true);
+    try {
+      if (source == 'gallery') {
+        final list = await ImageAttachmentService().pickFromGallery();
+        if (list.isNotEmpty) {
+          setState(() => _attachments.addAll(list));
+        }
+      } else if (source == 'camera') {
+        final path = await ImageAttachmentService().pickFromCamera();
+        if (path != null) {
+          setState(() => _attachments.add(path));
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  void _removeAttachment(int index) async {
+    final path = _attachments[index];
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Gambar?'),
+        content: const Text('Gambar akan dihapus dari catatan.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Hapus')),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await ImageAttachmentService().deleteFile(path);
+      setState(() => _attachments.removeAt(index));
+    }
+  }
+
+  void _previewImage(String path) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: GestureDetector(
+          onTap: () => Navigator.pop(ctx),
+          child: InteractiveViewer(
+            child: Image.file(File(path)),
+          ),
+        ),
       ),
     );
   }
