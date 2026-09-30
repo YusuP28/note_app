@@ -39,8 +39,8 @@ class LocalImageEmbedBuilder extends EmbedBuilder {
 
     // Ambil ukuran layar untuk batasi gambar
     final screenW = MediaQuery.of(context).size.width;
-    final maxW = (screenW - 40).clamp(200.0, 500.0);
-    final maxH = 240.0; // tinggi maksimal
+    final maxW = 60.0; // lebar maksimal (kecil)
+    final maxH = 60.0; // tinggi maksimal (kecil)
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
