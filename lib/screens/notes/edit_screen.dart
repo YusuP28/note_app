@@ -548,6 +548,22 @@ class _EditScreenState extends State<EditScreen> {
     );
   }
 
+
+  Future<void> _shareReadOnly(BuildContext context) async {
+    if (widget.note == null) return;
+    final content = widget.note!.title.isEmpty
+        ? widget.note!.plainText
+        : '${widget.note!.title}\n\n${widget.note!.plainText}';
+    await Clipboard.setData(ClipboardData(text: content));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tersalin ke clipboard'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    }
+  }
   Future<void> _pickReminder() async {
     final now = DateTime.now();
     final initial = _reminder ?? now.add(const Duration(minutes: 5));
