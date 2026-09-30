@@ -14,6 +14,7 @@ import '../../providers/notebook_provider.dart';
 import '../../providers/tag_provider.dart';
 import '../../utils/date_utils.dart';
 import '../../services/image_attachment_service.dart';
+import '../../services/quill_image_service.dart';
 import '../../widgets/image_picker_sheet.dart';
 
 class EditScreen extends StatefulWidget {
@@ -51,6 +52,7 @@ class _EditScreenState extends State<EditScreen> {
     _draftKeyTitle = 'draft_${_working.id}_title';
     _draftKeyContent = 'draft_${_working.id}_content';
 
+    QuillImageService().setUseOriginal(false); // default
     _titleCtrl.addListener(_onDraftChange);
     _contentCtrl.addListener(_onDraftChange);
     if (_isNew) _restoreDraft();
@@ -239,6 +241,11 @@ class _EditScreenState extends State<EditScreen> {
               tooltip: 'Tag',
               icon: Icon(Icons.label_outline, color: iconColor),
               onPressed: () => _pickTags(tags),
+            ),
+            IconButton(
+              tooltip: 'Tambah Gambar',
+              icon: Icon(Icons.image_outlined, color: iconColor),
+              onPressed: _insertImage,
             ),
             IconButton(
               tooltip: 'Simpan',
