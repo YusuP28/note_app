@@ -36,15 +36,15 @@ class NoteCard extends StatelessWidget {
         ),
       ),
       margin: EdgeInsets.symmetric(
-        vertical: 4,
-        horizontal: gridMode ? 4 : 8,
+        vertical: gridMode ? 2 : 4,
+        horizontal: gridMode ? 2 : 8,
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         onLongPress: onLongPress,
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(gridMode ? 8 : 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -59,9 +59,12 @@ class NoteCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       note.title.isEmpty ? 'Tanpa Judul' : note.title,
-                      maxLines: 1,
+                      maxLines: gridMode ? 2 : 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: gridMode ? 13 : 15,
+                      ),
                     ),
                   ),
                   if (note.isLocked)
@@ -81,9 +84,13 @@ class NoteCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   note.plainText,
-                  maxLines: gridMode ? 4 : 3,
+                  maxLines: gridMode ? 3 : 3,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
+                  style: TextStyle(
+                    color: scheme.onSurfaceVariant,
+                    fontSize: gridMode ? 11 : 13,
+                    height: 1.3,
+                  ),
                 ),
               ],
               const SizedBox(height: 8),

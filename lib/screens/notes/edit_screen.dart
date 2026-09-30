@@ -57,6 +57,13 @@ class _EditScreenState extends State<EditScreen> {
     _bgImagePath = _working.bgImagePath;
     _bgOpacity = _working.bgOpacity;
 
+    // Force re-render setelah frame pertama (fix bg image kadang tidak muncul)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _bgImagePath != null) {
+        setState(() {});
+      }
+    });
+
     _draftKeyTitle = 'draft_${_working.id}_title';
     _draftKeyContent = 'draft_${_working.id}_content';
     _titleCtrl.addListener(_onDraftChange);
@@ -442,13 +449,15 @@ class _EditScreenState extends State<EditScreen> {
         body: Stack(
           children: [
             // Background image
-            if (_bgImagePath != null)
+            if (_bgImagePath != null && _bgImagePath!.isNotEmpty)
               Positioned.fill(
                 child: Opacity(
                   opacity: _bgOpacity,
                   child: Image.file(
                     File(_bgImagePath!),
                     fit: BoxFit.cover,
+                    gaplessPlayback: true,
+                    cacheWidth: 1080,
                     errorBuilder: (_, __, ___) => const SizedBox(),
                   ),
                 ),
