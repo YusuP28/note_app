@@ -290,45 +290,7 @@ class _EditScreenState extends State<EditScreen> {
           ),
           iconTheme: IconThemeData(color: textColor),
           actions: [
-            IconButton(
-              tooltip: _reminder == null ? 'Set Pengingat' : 'Pengingat aktif',
-              icon: Icon(
-                _reminder == null ? Icons.alarm_add : Icons.alarm_on,
-                color: _reminder != null ? scheme.primary : textColor,
-              ),
-              onPressed: _pickReminder,
-            ),
-            IconButton(
-              tooltip: 'Warna',
-              icon: Icon(Icons.palette_outlined, color: textColor),
-              onPressed: _pickColor,
-            ),
-            IconButton(
-              tooltip: 'Background Gambar',
-              icon: Icon(Icons.wallpaper_outlined, color: textColor),
-              onPressed: _pickBackgroundImage,
-            ),
-            if (_bgImagePath != null)
-              IconButton(
-                tooltip: 'Atur Transparansi',
-                icon: Icon(Icons.opacity, color: textColor),
-                onPressed: _showOpacitySlider,
-              ),
-            IconButton(
-              tooltip: 'Notebook',
-              icon: Icon(Icons.folder_outlined, color: textColor),
-              onPressed: () => _pickNotebook(notebooks),
-            ),
-            IconButton(
-              tooltip: 'Tag',
-              icon: Icon(Icons.label_outline, color: textColor),
-              onPressed: () => _pickTags(tags),
-            ),
-            IconButton(
-              tooltip: 'Tambah Gambar',
-              icon: Icon(Icons.image_outlined, color: textColor),
-              onPressed: _insertImage,
-            ),
+            // Tombol Simpan (utama)
             IconButton(
               tooltip: 'Simpan',
               icon: _saving
@@ -341,6 +303,95 @@ class _EditScreenState extends State<EditScreen> {
                 final ok = await _save();
                 if (ok && mounted) Navigator.pop(context);
               },
+            ),
+            // Overflow menu
+            PopupMenuButton<String>(
+              icon: Icon(Icons.more_vert, color: textColor),
+              onSelected: (v) {
+                switch (v) {
+                  case 'reminder': _pickReminder(); break;
+                  case 'color': _pickColor(); break;
+                  case 'bg': _pickBackgroundImage(); break;
+                  case 'bg_opacity': _showOpacitySlider(); break;
+                  case 'bg_clear':
+                    setState(() { _bgImagePath = null; _bgOpacity = 0.3; });
+                    break;
+                  case 'notebook': _pickNotebook(notebooks); break;
+                  case 'tag': _pickTags(tags); break;
+                  case 'image': _insertImage(); break;
+                }
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'reminder',
+                  child: Row(children: [
+                    Icon(_reminder == null ? Icons.alarm_add : Icons.alarm_on,
+                        size: 20, color: _reminder != null ? scheme.primary : null),
+                    const SizedBox(width: 12),
+                    Text(_reminder == null ? 'Set Pengingat' : 'Ubah Pengingat'),
+                  ]),
+                ),
+                const PopupMenuItem(
+                  value: 'image',
+                  child: Row(children: [
+                    Icon(Icons.image_outlined, size: 20),
+                    SizedBox(width: 12),
+                    Text('Tambah Gambar'),
+                  ]),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                  value: 'color',
+                  child: Row(children: [
+                    Icon(Icons.palette_outlined, size: 20),
+                    SizedBox(width: 12),
+                    Text('Warna Catatan'),
+                  ]),
+                ),
+                const PopupMenuItem(
+                  value: 'bg',
+                  child: Row(children: [
+                    Icon(Icons.wallpaper_outlined, size: 20),
+                    SizedBox(width: 12),
+                    Text('Background Gambar'),
+                  ]),
+                ),
+                if (_bgImagePath != null) ...[
+                  const PopupMenuItem(
+                    value: 'bg_opacity',
+                    child: Row(children: [
+                      Icon(Icons.opacity, size: 20),
+                      SizedBox(width: 12),
+                      Text('Transparansi BG'),
+                    ]),
+                  ),
+                  const PopupMenuItem(
+                    value: 'bg_clear',
+                    child: Row(children: [
+                      Icon(Icons.clear, size: 20),
+                      SizedBox(width: 12),
+                      Text('Hapus Background'),
+                    ]),
+                  ),
+                ],
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                  value: 'notebook',
+                  child: Row(children: [
+                    Icon(Icons.folder_outlined, size: 20),
+                    SizedBox(width: 12),
+                    Text('Notebook'),
+                  ]),
+                ),
+                const PopupMenuItem(
+                  value: 'tag',
+                  child: Row(children: [
+                    Icon(Icons.label_outline, size: 20),
+                    SizedBox(width: 12),
+                    Text('Tag'),
+                  ]),
+                ),
+              ],
             ),
           ],
         ),

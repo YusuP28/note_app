@@ -26,6 +26,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _initialized = false;
+  bool _selectionMode = false;
+  final Set<String> _selectedIds = {};
 
   @override
   void didChangeDependencies() {
@@ -53,6 +55,94 @@ class _HomeScreenState extends State<HomeScreen> {
     );
     if (result != null && mounted) {
       await context.read<NoteProvider>().updateNote(result);
+    }
+  }
+
+  void _toggleSelection(String id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+        if (_selectedIds.isEmpty) _selectionMode = false;
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _enterSelectionMode(String id) {
+    setState(() {
+      _selectionMode = true;
+      _selectedIds.add(id);
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _selectionMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  Future<void> _deleteSelected() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Catatan?'),
+        content: Text('${_selectedIds.length} catatan akan dipindah ke sampah.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Hapus')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    final p = context.read<NoteProvider>();
+    int count = 0;
+    for (final id in _selectedIds) {
+      final note = p.notes.firstWhere((n) => n.id == id, orElse: () => Note(id: '', createdAt: DateTime.now(), updatedAt: DateTime.now()));
+      if (note.id.isNotEmpty) {
+        await p.trash(note);
+        count++;
+      }
+    }
+    _exitSelectionMode();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$count catatan dipindah ke sampah')),
+      );
+    }
+  }
+
+  Future<void> _archiveSelected() async {
+    final p = context.read<NoteProvider>();
+    int count = 0;
+    for (final id in _selectedIds) {
+      final note = p.notes.firstWhere((n) => n.id == id, orElse: () => Note(id: '', createdAt: DateTime.now(), updatedAt: DateTime.now()));
+      if (note.id.isNotEmpty) {
+        await p.archive(note, true);
+        count++;
+      }
+    }
+    _exitSelectionMode();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$count catatan diarsipkan')),
+      );
+    }
+  }
+
+  Future<void> _pinSelected() async {
+    final p = context.read<NoteProvider>();
+    for (final id in _selectedIds) {
+      final note = p.notes.firstWhere((n) => n.id == id, orElse: () => Note(id: '', createdAt: DateTime.now(), updatedAt: DateTime.now()));
+      if (note.id.isNotEmpty) await p.togglePin(note);
+    }
+    _exitSelectionMode();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${_selectedIds.length} catatan disematkan')),
+      );
     }
   }
 
@@ -152,9 +242,16 @@ class _HomeScreenState extends State<HomeScreen> {
     };
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: _selectionMode
+          ? _buildSelectionAppBar(context, p)
+          : AppBar(
         title: Text(title),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.checklist),
+            tooltip: 'Pilih Banyak',
+            onPressed: () => setState(() => _selectionMode = true),
+          ),
           IconButton(
             icon: Icon(s.view == ViewMode.list ? Icons.grid_view : Icons.view_list),
             tooltip: s.view == ViewMode.list ? 'Grid' : 'List',
@@ -181,7 +278,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      drawer: _buildDrawer(context, p),
+      drawer: _selectionMode ? null : _buildDrawer(context, p),
       body: p.loading
           ? const Center(child: CircularProgressIndicator())
           : p.error != null
@@ -227,8 +324,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             return NoteCard(
                               note: n,
                               gridMode: true,
-                              onTap: () => _openNote(n),
-                              onLongPress: () => _showContextMenu(n),
+                              onTap: _selectionMode ? () => _toggleSelection(n.id) : () => _openNote(n),
+                              onLongPress: _selectionMode ? () => _toggleSelection(n.id) : () => _showContextMenu(n),
                             );
                           },
                         )
@@ -239,8 +336,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             final n = p.notes[i];
                             return NoteCard(
                               note: n,
-                              onTap: () => _openNote(n),
-                              onLongPress: () => _showContextMenu(n),
+                              onTap: _selectionMode ? () => _toggleSelection(n.id) : () => _openNote(n),
+                              onLongPress: _selectionMode ? () => _toggleSelection(n.id) : () => _showContextMenu(n),
                             );
                           },
                         ),
