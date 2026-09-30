@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/note.dart';
 import '../utils/date_utils.dart';
@@ -43,7 +44,27 @@ class NoteCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         onLongPress: onLongPress,
-        child: Padding(
+        child: Stack(
+          children: [
+            // Background image
+            if (note.bgImagePath != null && note.bgImagePath!.isNotEmpty)
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Opacity(
+                    opacity: note.bgOpacity,
+                    child: Image.file(
+                      File(note.bgImagePath!),
+                      fit: BoxFit.cover,
+                      gaplessPlayback: true,
+                      cacheWidth: gridMode ? 400 : 800,
+                      errorBuilder: (_, __, ___) => const SizedBox(),
+                    ),
+                  ),
+                ),
+              ),
+            // Content
+            Padding(
           padding: EdgeInsets.all(gridMode ? 8 : 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -116,6 +137,8 @@ class NoteCard extends StatelessWidget {
               ),
             ],
           ),
+        ),
+          ],
         ),
       ),
     );
