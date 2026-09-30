@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,7 +20,8 @@ import '../../widgets/local_image_embed.dart';
 
 class EditScreen extends StatefulWidget {
   final Note? note;
-  const EditScreen({super.key, this.note});
+  final bool readOnly;
+  const EditScreen({super.key, this.note, this.readOnly = false});
 
   @override
   State<EditScreen> createState() => _EditScreenState();
@@ -285,11 +287,31 @@ class _EditScreenState extends State<EditScreen> {
           foregroundColor: textColor,
           elevation: 0,
           title: Text(
-            _isNew ? 'Catatan Baru' : 'Edit Catatan',
+            widget.readOnly ? 'Baca Catatan' : (_isNew ? 'Catatan Baru' : 'Edit Catatan'),
             style: TextStyle(color: textColor),
           ),
           iconTheme: IconThemeData(color: textColor),
-          actions: [
+          actions: widget.readOnly
+              ? [
+                  IconButton(
+                    tooltip: 'Bagikan',
+                    icon: Icon(Icons.share_outlined, color: textColor),
+                    onPressed: () => _shareReadOnly(context),
+                  ),
+                  IconButton(
+                    tooltip: 'Edit',
+                    icon: Icon(Icons.edit_outlined, color: textColor),
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => EditScreen(note: widget.note),
+                        ),
+                      );
+                    },
+                  ),
+                ]
+              : [
             // Tombol Simpan (utama)
             IconButton(
               tooltip: 'Simpan',
@@ -481,7 +503,8 @@ class _EditScreenState extends State<EditScreen> {
                       scrollController: _scrollCtrl,
                       configurations: quill.QuillEditorConfigurations(
                         controller: _contentCtrl,
-                        placeholder: 'Tulis catatan di sini...',
+                        readOnly: widget.readOnly,
+                        placeholder: widget.readOnly ? '' : 'Tulis catatan di sini...',
                         padding: EdgeInsets.zero,
                         autoFocus: false,
                         expands: true,

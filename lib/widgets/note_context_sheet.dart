@@ -54,8 +54,10 @@ Future<String?> showNoteContextSheet(BuildContext context, Note note) async {
           ),
           const Divider(height: 1),
 
-          // Aksi: Buka
+          // Aksi: Buka & Edit
           _tile(ctx, Icons.edit_outlined, 'Buka & Edit', 'open'),
+          // Aksi: Mode Baca
+          _tile(ctx, Icons.menu_book_outlined, 'Mode Baca', 'read'),
           // Aksi: Pin/Unpin
           _tile(
             ctx,
@@ -103,6 +105,15 @@ Future<void> handleNoteAction(
   final provider = context.read<NoteProvider>();
 
   switch (action) {
+    case 'read':
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => EditScreen(note: note, readOnly: true),
+        ),
+      );
+      break;
+
     case 'open':
       await Navigator.push(
         context,
