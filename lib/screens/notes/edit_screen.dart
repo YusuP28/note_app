@@ -307,7 +307,7 @@ class _EditScreenState extends State<EditScreen> {
             Divider(color: dividerColor),
             quill.QuillSimpleToolbar(
               controller: _contentCtrl,
-              config: const quill.QuillSimpleToolbarConfig(
+              configurations: const quill.QuillSimpleToolbarConfigurations(
                 multiRowsDisplay: false,
                 showUndo: true,
                 showRedo: true,
@@ -331,7 +331,7 @@ class _EditScreenState extends State<EditScreen> {
                   controller: _contentCtrl,
                   focusNode: _focusNode,
                   scrollController: _scrollCtrl,
-                  config: quill.QuillEditorConfig(
+                  configurations: quill.QuillEditorConfigurations(
                     placeholder: 'Tulis catatan di sini...',
                     padding: EdgeInsets.zero,
                     autoFocus: false,
