@@ -24,7 +24,7 @@ class QuillImageService {
       if (files.isEmpty) return;
       for (final f in files) {
         final saved = await _saveToApp(f);
-        if (saved != null) _insertImage(controller, saved);
+        if (saved != null) _insertImageBlock(controller, saved);
       }
     } catch (e) {
       debugPrint('insertFromGallery error: $e');
@@ -40,29 +40,48 @@ class QuillImageService {
       );
       if (f == null) return;
       final saved = await _saveToApp(f);
-      if (saved != null) _insertImage(controller, saved);
+      if (saved != null) _insertImageBlock(controller, saved);
     } catch (e) {
       debugPrint('insertFromCamera error: $e');
     }
   }
 
-  void _insertImage(QuillController controller, String path) {
+  /// Sisip sebagai block: newline + image + newline
+  void _insertImageBlock(QuillController controller, String path) {
     final index = controller.selection.baseOffset;
     final length = controller.selection.extentOffset - index;
+
+    // Cek apakah perlu newline sebelum gambar (posisi awal / setelah newline)
+    final doc = controller.document;
+    final text = doc.toPlainText();
+    final needLeadingNl = index > 0 && index <= text.length && text[index - 1] != '\n';
+
+    // Sisip: [optional newline] + image block + newline
+    final buffer = StringBuffer();
+    if (needLeadingNl) buffer.write('\n');
+    buffer.write('\uFFFC'); // BlockEmbed placeholder
+    buffer.write('\n');
 
     controller.replaceText(
       index,
       length,
-      BlockEmbed.image(path),
-      TextSelection.collapsed(offset: index + 1),
+      buffer.toString(),
+      TextSelection.collapsed(offset: index + buffer.length),
     );
 
-    // Newline setelah gambar
-    controller.replaceText(
-      index + 2,
-      0,
-      '\n',
-      TextSelection.collapsed(offset: index + 3),
+    // Set attribut BlockEmbed pada karakter U+FFFC
+    final imageIndex = index + (needLeadingNl ? 1 : 0);
+    controller.formatText(
+      imageIndex,
+      1,
+      Attribute.embed.name,
+      Attribute.fromKeyValue('image', path),
+    );
+
+    // Pastikan posisi cursor setelah newline terakhir
+    controller.updateSelection(
+      TextSelection.collapsed(offset: index + buffer.length),
+      ChangeSource.local,
     );
   }
 

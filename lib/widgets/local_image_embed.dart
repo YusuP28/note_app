@@ -39,11 +39,11 @@ class LocalImageEmbedBuilder extends EmbedBuilder {
 
     // Ambil ukuran layar untuk batasi gambar
     final screenW = MediaQuery.of(context).size.width;
-    final maxW = 60.0; // lebar maksimal (kecil)
-    final maxH = 60.0; // tinggi maksimal (kecil)
+    final maxW = 90.0; // lebar maksimal
+    final maxH = 90.0; // tinggi maksimal
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.only(top: 4, bottom: 8),
       child: GestureDetector(
         onTap: () => _showFullscreen(context, file),
         child: ConstrainedBox(
