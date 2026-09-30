@@ -306,8 +306,8 @@ class _EditScreenState extends State<EditScreen> {
             ),
             Divider(color: dividerColor),
             quill.QuillSimpleToolbar(
-              controller: _contentCtrl,
-              configurations: const quill.QuillSimpleToolbarConfigurations(
+              configurations: quill.QuillSimpleToolbarConfigurations(
+                controller: _contentCtrl,
                 multiRowsDisplay: false,
                 showUndo: true,
                 showRedo: true,
@@ -319,7 +319,7 @@ class _EditScreenState extends State<EditScreen> {
                 showListNumbers: true,
                 showListCheck: true,
                 showHeaderStyle: true,
-                showInlineImageButton: false,
+                showInlineCode: false,
                 showClearFormat: true,
               ),
             ),
@@ -331,12 +331,11 @@ class _EditScreenState extends State<EditScreen> {
                   controller: _contentCtrl,
                   focusNode: _focusNode,
                   scrollController: _scrollCtrl,
-                  configurations: quill.QuillEditorConfigurations(
+                  configurations: const quill.QuillEditorConfigurations(
                     placeholder: 'Tulis catatan di sini...',
                     padding: EdgeInsets.zero,
                     autoFocus: false,
                     expands: true,
-                    embedBuilders: const [],
                   ),
                 ),
               ),
