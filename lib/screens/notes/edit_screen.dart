@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
-import 'package:flutter_quill/quill_delta.dart' as quill_delta;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,7 +11,6 @@ import '../../providers/note_provider.dart';
 import '../../providers/notebook_provider.dart';
 import '../../providers/tag_provider.dart';
 import '../../utils/date_utils.dart';
-import '../../services/image_attachment_service.dart';
 import '../../services/quill_image_service.dart';
 import '../../widgets/image_picker_sheet.dart';
 
@@ -52,16 +49,14 @@ class _EditScreenState extends State<EditScreen> {
     _draftKeyTitle = 'draft_${_working.id}_title';
     _draftKeyContent = 'draft_${_working.id}_content';
 
-    QuillImageService().setUseOriginal(false); // default
     _titleCtrl.addListener(_onDraftChange);
     _contentCtrl.addListener(_onDraftChange);
     if (_isNew) _restoreDraft();
   }
 
   quill.QuillController _buildQuillController(String content) {
-    // Coba parse sebagai Delta JSON
     try {
-      if (content.trim().startsWith('[') || content.trim().startsWith('{')) {
+      if (content.trim().startsWith('[')) {
         final json = jsonDecode(content);
         if (json is List) {
           final doc = quill.Document.fromJson(json);
@@ -72,7 +67,6 @@ class _EditScreenState extends State<EditScreen> {
         }
       }
     } catch (_) {}
-    // Fallback: plain text
     final doc = quill.Document()..insert(0, content);
     return quill.QuillController(
       document: doc,
@@ -90,7 +84,6 @@ class _EditScreenState extends State<EditScreen> {
     super.dispose();
   }
 
-  // ============ DRAFT ============
   Future<void> _restoreDraft() async {
     final p = await SharedPreferences.getInstance();
     final t = p.getString(_draftKeyTitle) ?? '';
@@ -124,10 +117,8 @@ class _EditScreenState extends State<EditScreen> {
   }
 
   String _deltaJson() => jsonEncode(_contentCtrl.document.toDelta().toJson());
-
   String _plainText() => _contentCtrl.document.toPlainText().trim();
 
-  // ============ SAVE ============
   Future<bool> _save({bool silent = false}) async {
     if (_saving) return false;
     _saving = true;
@@ -184,8 +175,17 @@ class _EditScreenState extends State<EditScreen> {
     }
   }
 
-  Color _contrastText(Color bg) {
-    return bg.computeLuminance() > 0.5 ? Colors.black87 : Colors.white;
+  Color _contrastText(Color bg) =>
+      bg.computeLuminance() > 0.5 ? Colors.black87 : Colors.white;
+
+  Future<void> _insertImage() async {
+    final source = await showImageSourceSheet(context);
+    if (source == null) return;
+    if (source == 'gallery') {
+      await QuillImageService().insertFromGallery(_contentCtrl);
+    } else if (source == 'camera') {
+      await QuillImageService().insertFromCamera(_contentCtrl);
+    }
   }
 
   @override
@@ -197,7 +197,6 @@ class _EditScreenState extends State<EditScreen> {
     final customColor = _working.color != null ? Color(_working.color!) : null;
     final editorBg = customColor ?? scheme.surface;
     final textColor = customColor != null ? _contrastText(editorBg) : scheme.onSurface;
-    final iconColor = textColor;
     final dividerColor = textColor.withOpacity(0.25);
 
     return PopScope(
@@ -211,64 +210,59 @@ class _EditScreenState extends State<EditScreen> {
         backgroundColor: editorBg,
         appBar: AppBar(
           backgroundColor: editorBg,
-          foregroundColor: iconColor,
+          foregroundColor: textColor,
           elevation: 0,
           title: Text(
             _isNew ? 'Catatan Baru' : 'Edit Catatan',
             style: TextStyle(color: textColor),
           ),
-          iconTheme: IconThemeData(color: iconColor),
+          iconTheme: IconThemeData(color: textColor),
           actions: [
             IconButton(
               tooltip: _reminder == null ? 'Set Pengingat' : 'Pengingat aktif',
               icon: Icon(
                 _reminder == null ? Icons.alarm_add : Icons.alarm_on,
-                color: _reminder != null ? scheme.primary : iconColor,
+                color: _reminder != null ? scheme.primary : textColor,
               ),
               onPressed: _pickReminder,
             ),
             IconButton(
               tooltip: 'Warna',
-              icon: Icon(Icons.palette_outlined, color: iconColor),
+              icon: Icon(Icons.palette_outlined, color: textColor),
               onPressed: _pickColor,
             ),
             IconButton(
               tooltip: 'Notebook',
-              icon: Icon(Icons.folder_outlined, color: iconColor),
+              icon: Icon(Icons.folder_outlined, color: textColor),
               onPressed: () => _pickNotebook(notebooks),
             ),
             IconButton(
               tooltip: 'Tag',
-              icon: Icon(Icons.label_outline, color: iconColor),
+              icon: Icon(Icons.label_outline, color: textColor),
               onPressed: () => _pickTags(tags),
             ),
             IconButton(
               tooltip: 'Tambah Gambar',
-              icon: Icon(Icons.image_outlined, color: iconColor),
+              icon: Icon(Icons.image_outlined, color: textColor),
               onPressed: _insertImage,
             ),
             IconButton(
               tooltip: 'Simpan',
               icon: _saving
                   ? SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: iconColor),
+                      width: 18, height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: textColor),
                     )
-                  : Icon(Icons.check, color: iconColor),
-              onPressed: _saving
-                  ? null
-                  : () async {
-                      final ok = await _save();
-                      if (ok && mounted) Navigator.pop(context);
-                    },
+                  : Icon(Icons.check, color: textColor),
+              onPressed: _saving ? null : () async {
+                final ok = await _save();
+                if (ok && mounted) Navigator.pop(context);
+              },
             ),
           ],
         ),
         body: Column(
           children: [
-            // Reminder banner
             if (_reminder != null)
               Container(
                 margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -297,7 +291,6 @@ class _EditScreenState extends State<EditScreen> {
                   ],
                 ),
               ),
-            // Title
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: TextField(
@@ -308,18 +301,13 @@ class _EditScreenState extends State<EditScreen> {
                   hintStyle: TextStyle(color: textColor.withOpacity(0.55)),
                   border: InputBorder.none,
                 ),
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
               ),
             ),
             Divider(color: dividerColor),
-            // Quill toolbar
             quill.QuillSimpleToolbar(
               controller: _contentCtrl,
-              config: quill.QuillSimpleToolbarConfig(
+              config: const quill.QuillSimpleToolbarConfig(
                 multiRowsDisplay: false,
                 showUndo: true,
                 showRedo: true,
@@ -327,33 +315,15 @@ class _EditScreenState extends State<EditScreen> {
                 showItalicButton: true,
                 showUnderLineButton: true,
                 showStrikeThrough: true,
-                showInlineCode: false,
                 showListBullets: true,
                 showListNumbers: true,
                 showListCheck: true,
-                showQuote: false,
-                showIndent: false,
-                showLink: false,
-                showColorButton: false,
-                showBackgroundColorButton: false,
-                showClearFormat: true,
-                showAlignmentButtons: false,
                 showHeaderStyle: true,
-                showSubscript: false,
-                showSuperscript: false,
-                showFontFamily: false,
-                showFontSize: false,
-                showCodeBlock: false,
-                showSearchButton: false,
-                showDirection: false,
-                showDividers: false,
-                showSmallButton: false,
-                showInlineImageButton: true,
-                showLineHeightButton: false,
+                showInlineImageButton: false,
+                showClearFormat: true,
               ),
             ),
             Divider(height: 1, color: dividerColor),
-            // Quill editor
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -364,23 +334,14 @@ class _EditScreenState extends State<EditScreen> {
                   config: quill.QuillEditorConfig(
                     placeholder: 'Tulis catatan di sini...',
                     padding: EdgeInsets.zero,
-                    embedBuilders: [],
-                    customStyles: quill.DefaultStyles(
-                      paragraph: quill.DefaultTextBlockStyle(
-                        TextStyle(fontSize: 15, color: textColor),
-                        const quill.HorizontalSpacing(0, 0),
-                        const quill.VerticalSpacing(0, 0),
-                        const quill.VerticalSpacing(0, 0),
-                        null,
-                      ),
-                    ),
+                    autoFocus: false,
+                    expands: true,
+                    embedBuilders: const [],
                   ),
                 ),
               ),
             ),
-            // Tag chips
-            if (_working.tagIds.isNotEmpty)
-              _tagChips(tags, textColor),
+            if (_working.tagIds.isNotEmpty) _tagChips(tags, textColor),
           ],
         ),
       ),
@@ -417,16 +378,13 @@ class _EditScreenState extends State<EditScreen> {
     final now = DateTime.now();
     final initial = _reminder ?? now.add(const Duration(minutes: 5));
     final date = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: now,
+      context: context, initialDate: initial, firstDate: now,
       lastDate: now.add(const Duration(days: 365 * 5)),
     );
     if (date == null) return;
     if (!mounted) return;
     final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(initial),
+      context: context, initialTime: TimeOfDay.fromDateTime(initial),
     );
     if (time == null) return;
     final picked = DateTime(date.year, date.month, date.day, time.hour, time.minute, 0, 0, 0);
@@ -443,22 +401,17 @@ class _EditScreenState extends State<EditScreen> {
 
   Future<void> _pickColor() async {
     final colors = <Color>[
-      const Color(0xFF6750A4),
-      const Color(0xFFE57373),
-      const Color(0xFFFFB74D),
-      const Color(0xFFFFF176),
-      const Color(0xFF81C784),
-      const Color(0xFF64B5F6),
-      const Color(0xFFBA68C8),
-      const Color(0xFFA1887F),
+      const Color(0xFF6750A4), const Color(0xFFE57373),
+      const Color(0xFFFFB74D), const Color(0xFFFFF176),
+      const Color(0xFF81C784), const Color(0xFF64B5F6),
+      const Color(0xFFBA68C8), const Color(0xFFA1887F),
     ];
     final picked = await showDialog<Color?>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Pilih Warna'),
         content: Wrap(
-          spacing: 10,
-          runSpacing: 10,
+          spacing: 10, runSpacing: 10,
           children: [
             ...colors.map((c) => GestureDetector(
                   onTap: () => Navigator.pop(ctx, c),
@@ -538,8 +491,7 @@ class _EditScreenState extends State<EditScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Tag',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text('Tag', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
                 Row(
                   children: [

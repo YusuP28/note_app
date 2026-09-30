@@ -1,6 +1,5 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
-import 'package:flutter_quill/quill_delta.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
@@ -16,7 +15,6 @@ class QuillImageService {
 
   void setUseOriginal(bool v) => _useOriginal = v;
 
-  /// Pilih dari galeri, sisipkan sebagai gambar inline
   Future<void> insertFromGallery(QuillController controller) async {
     try {
       final files = await _picker.pickMultiImage(
@@ -24,7 +22,6 @@ class QuillImageService {
         maxWidth: _useOriginal ? null : 1920,
       );
       if (files.isEmpty) return;
-
       for (final f in files) {
         final saved = await _saveToApp(f);
         if (saved != null) _insertImage(controller, saved);
@@ -34,7 +31,6 @@ class QuillImageService {
     }
   }
 
-  /// Ambil dari kamera, sisipkan inline
   Future<void> insertFromCamera(QuillController controller) async {
     try {
       final f = await _picker.pickImage(
@@ -50,13 +46,9 @@ class QuillImageService {
     }
   }
 
-  /// Sisipkan gambar inline di posisi cursor
   void _insertImage(QuillController controller, String path) {
     final index = controller.selection.baseOffset;
     final length = controller.selection.extentOffset - index;
-
-    // Newline sebelum gambar biar rapi
-    final beforeNewline = _needsNewline(controller, index);
 
     controller.replaceText(
       index,
@@ -65,20 +57,13 @@ class QuillImageService {
       TextSelection.collapsed(offset: index + 1),
     );
 
-    // Tambah newline setelah gambar
+    // Newline setelah gambar
     controller.replaceText(
       index + 2,
       0,
       '\n',
       TextSelection.collapsed(offset: index + 3),
     );
-  }
-
-  bool _needsNewline(QuillController controller, int index) {
-    if (index <= 0) return true;
-    final text = controller.document.toPlainText();
-    if (index > text.length) return true;
-    return text[index - 1] != '\n';
   }
 
   Future<String?> _saveToApp(XFile file) async {

@@ -35,8 +35,8 @@ dependencies:
   googleapis_auth: ^1.6.0
   http: ^1.2.2
   image_picker: ^1.1.2
-  flutter_quill: ^10.8.5
-  flutter_quill_extensions: ^10.8.5
+  flutter_quill: ^9.6.0
+  flutter_quill_extensions: ^9.6.0
 
 dev_dependencies:
   flutter_test:
