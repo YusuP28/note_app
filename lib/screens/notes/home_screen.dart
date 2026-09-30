@@ -312,11 +312,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           padding: const EdgeInsets.symmetric(
                               vertical: 6, horizontal: 4),
                           gridDelegate:
-                              const SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: 240,
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
                             mainAxisSpacing: 4,
                             crossAxisSpacing: 4,
-                            childAspectRatio: 0.85,
+                            childAspectRatio: 1.0,
                           ),
                           itemCount: p.notes.length,
                           itemBuilder: (_, i) {

@@ -342,6 +342,16 @@ class _EditScreenState extends State<EditScreen> {
                   case 'notebook': _pickNotebook(notebooks); break;
                   case 'tag': _pickTags(tags); break;
                   case 'image': _insertImage(); break;
+                  case 'read_preview':
+                    if (!_isNew && widget.note != null) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => EditScreen(note: _working, readOnly: true),
+                        ),
+                      );
+                    }
+                    break;
                 }
               },
               itemBuilder: (_) => [
@@ -414,6 +424,17 @@ class _EditScreenState extends State<EditScreen> {
                     Text('Tag'),
                   ]),
                 ),
+                if (!_isNew) ...[
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
+                    value: 'read_preview',
+                    child: Row(children: [
+                      Icon(Icons.menu_book_outlined, size: 20),
+                      SizedBox(width: 12),
+                      Text('Mode Baca'),
+                    ]),
+                  ),
+                ],
               ],
             ),
           ],
@@ -432,8 +453,10 @@ class _EditScreenState extends State<EditScreen> {
                   ),
                 ),
               ),
-            // Main content
-            Column(
+            // Main content (dengan bg semi-transparan)
+            Container(
+              color: editorBg.withOpacity(_bgImagePath != null ? 0.7 : 1.0),
+              child: Column(
               children: [
                 if (_reminder != null)
                   Container(
@@ -515,6 +538,7 @@ class _EditScreenState extends State<EditScreen> {
                 ),
                 if (_working.tagIds.isNotEmpty) _tagChips(tags, textColor),
               ],
+            ),
             ),
           ],
         ),
