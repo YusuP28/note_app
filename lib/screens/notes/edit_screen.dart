@@ -1,5 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart' as quill;
+import 'package:flutter_quill/quill_delta.dart' as quill_delta;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -11,8 +15,6 @@ import '../../providers/tag_provider.dart';
 import '../../utils/date_utils.dart';
 import '../../services/image_attachment_service.dart';
 import '../../widgets/image_picker_sheet.dart';
-import '../../widgets/image_thumbnail.dart';
-import 'dart:io';
 
 class EditScreen extends StatefulWidget {
   final Note? note;
@@ -24,12 +26,14 @@ class EditScreen extends StatefulWidget {
 
 class _EditScreenState extends State<EditScreen> {
   late TextEditingController _titleCtrl;
-  late TextEditingController _contentCtrl;
+  late quill.QuillController _contentCtrl;
+  final _scrollCtrl = ScrollController();
+  final _focusNode = FocusNode();
+
   late Note _working;
   bool _isNew = false;
   bool _saving = false;
   DateTime? _reminder;
-  late List<String> _attachments;
   Timer? _draftTimer;
   late final String _draftKeyTitle;
   late final String _draftKeyContent;
@@ -41,14 +45,37 @@ class _EditScreenState extends State<EditScreen> {
     _working = widget.note ??
         Note(id: '', createdAt: DateTime.now(), updatedAt: DateTime.now());
     _titleCtrl = TextEditingController(text: _working.title);
-    _contentCtrl = TextEditingController(text: _working.content);
+    _contentCtrl = _buildQuillController(_working.content);
+
     _reminder = _working.reminderAt;
-    _attachments = List.from(_working.attachments);
     _draftKeyTitle = 'draft_${_working.id}_title';
     _draftKeyContent = 'draft_${_working.id}_content';
+
     _titleCtrl.addListener(_onDraftChange);
     _contentCtrl.addListener(_onDraftChange);
     if (_isNew) _restoreDraft();
+  }
+
+  quill.QuillController _buildQuillController(String content) {
+    // Coba parse sebagai Delta JSON
+    try {
+      if (content.trim().startsWith('[') || content.trim().startsWith('{')) {
+        final json = jsonDecode(content);
+        if (json is List) {
+          final doc = quill.Document.fromJson(json);
+          return quill.QuillController(
+            document: doc,
+            selection: const TextSelection.collapsed(offset: 0),
+          );
+        }
+      }
+    } catch (_) {}
+    // Fallback: plain text
+    final doc = quill.Document()..insert(0, content);
+    return quill.QuillController(
+      document: doc,
+      selection: const TextSelection.collapsed(offset: 0),
+    );
   }
 
   @override
@@ -56,9 +83,12 @@ class _EditScreenState extends State<EditScreen> {
     _draftTimer?.cancel();
     _titleCtrl.dispose();
     _contentCtrl.dispose();
+    _scrollCtrl.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
+  // ============ DRAFT ============
   Future<void> _restoreDraft() async {
     final p = await SharedPreferences.getInstance();
     final t = p.getString(_draftKeyTitle) ?? '';
@@ -67,7 +97,7 @@ class _EditScreenState extends State<EditScreen> {
       if (!mounted) return;
       setState(() {
         _titleCtrl.text = t;
-        _contentCtrl.text = c;
+        if (c.isNotEmpty) _contentCtrl = _buildQuillController(c);
       });
     }
   }
@@ -82,7 +112,7 @@ class _EditScreenState extends State<EditScreen> {
     if (!_isNew) return;
     final p = await SharedPreferences.getInstance();
     await p.setString(_draftKeyTitle, _titleCtrl.text);
-    await p.setString(_draftKeyContent, _contentCtrl.text);
+    await p.setString(_draftKeyContent, _deltaJson());
   }
 
   Future<void> _clearDraft() async {
@@ -91,15 +121,21 @@ class _EditScreenState extends State<EditScreen> {
     await p.remove(_draftKeyContent);
   }
 
+  String _deltaJson() => jsonEncode(_contentCtrl.document.toDelta().toJson());
+
+  String _plainText() => _contentCtrl.document.toPlainText().trim();
+
+  // ============ SAVE ============
   Future<bool> _save({bool silent = false}) async {
     if (_saving) return false;
     _saving = true;
 
     final p = context.read<NoteProvider>();
     final title = _titleCtrl.text.trim();
-    final content = _contentCtrl.text.trim();
+    final delta = _deltaJson();
+    final plain = _plainText();
 
-    if (title.isEmpty && content.isEmpty) {
+    if (title.isEmpty && plain.isEmpty) {
       await _clearDraft();
       _saving = false;
       return true;
@@ -109,20 +145,21 @@ class _EditScreenState extends State<EditScreen> {
       if (_isNew) {
         final created = await p.addNote(
           title: title.isEmpty ? 'Tanpa Judul' : title,
-          content: content,
+          content: '',
           notebookId: _working.notebookId,
         );
+        created.content = delta;
+        created.plainText = plain;
         if (_working.color != null) created.color = _working.color;
         created.tagIds = List.from(_working.tagIds);
-        created.attachments = List.from(_attachments);
         await p.updateNote(created);
         if (_reminder != null) await p.setReminder(created, _reminder);
         _working = created;
         _isNew = false;
       } else {
         _working.title = title.isEmpty ? 'Tanpa Judul' : title;
-        _working.content = content;
-        _working.attachments = List.from(_attachments);
+        _working.content = delta;
+        _working.plainText = plain;
         await p.updateNote(_working);
         await p.setReminder(_working, _reminder);
       }
@@ -145,10 +182,8 @@ class _EditScreenState extends State<EditScreen> {
     }
   }
 
-  /// Hitung warna teks kontras terhadap background
   Color _contrastText(Color bg) {
-    final lum = bg.computeLuminance();
-    return lum > 0.5 ? Colors.black87 : Colors.white;
+    return bg.computeLuminance() > 0.5 ? Colors.black87 : Colors.white;
   }
 
   @override
@@ -157,14 +192,9 @@ class _EditScreenState extends State<EditScreen> {
     final tags = context.watch<TagProvider>();
     final scheme = Theme.of(context).colorScheme;
 
-    // Warna editor mengikuti warna catatan
     final customColor = _working.color != null ? Color(_working.color!) : null;
     final editorBg = customColor ?? scheme.surface;
-    // Warna teks hanya kontras kalau pakai warna custom
-    final textColor = customColor != null
-        ? _contrastText(editorBg)
-        : scheme.onSurface;
-    final hintColor = textColor.withOpacity(0.55);
+    final textColor = customColor != null ? _contrastText(editorBg) : scheme.onSurface;
     final iconColor = textColor;
     final dividerColor = textColor.withOpacity(0.25);
 
@@ -229,44 +259,46 @@ class _EditScreenState extends State<EditScreen> {
             ),
           ],
         ),
-        body: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              if (_reminder != null)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: textColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: textColor.withOpacity(0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.alarm, size: 16, color: textColor),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Pengingat: ${AppDate.full(_reminder!)}',
-                          style: TextStyle(fontSize: 12, color: textColor),
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.close, size: 16, color: textColor),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        onPressed: () => setState(() => _reminder = null),
-                      ),
-                    ],
-                  ),
+        body: Column(
+          children: [
+            // Reminder banner
+            if (_reminder != null)
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: textColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: textColor.withOpacity(0.3)),
                 ),
-              TextField(
+                child: Row(
+                  children: [
+                    Icon(Icons.alarm, size: 16, color: textColor),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Pengingat: ${AppDate.full(_reminder!)}',
+                        style: TextStyle(fontSize: 12, color: textColor),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close, size: 16, color: textColor),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () => setState(() => _reminder = null),
+                    ),
+                  ],
+                ),
+              ),
+            // Title
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: TextField(
                 controller: _titleCtrl,
                 cursorColor: textColor,
                 decoration: InputDecoration(
                   hintText: 'Judul...',
-                  hintStyle: TextStyle(color: hintColor),
+                  hintStyle: TextStyle(color: textColor.withOpacity(0.55)),
                   border: InputBorder.none,
                 ),
                 style: TextStyle(
@@ -275,25 +307,74 @@ class _EditScreenState extends State<EditScreen> {
                   color: textColor,
                 ),
               ),
-              Divider(color: dividerColor),
-              Expanded(
-                child: TextField(
+            ),
+            Divider(color: dividerColor),
+            // Quill toolbar
+            quill.QuillSimpleToolbar(
+              controller: _contentCtrl,
+              config: quill.QuillSimpleToolbarConfig(
+                multiRowsDisplay: false,
+                showUndo: true,
+                showRedo: true,
+                showBoldButton: true,
+                showItalicButton: true,
+                showUnderLineButton: true,
+                showStrikeThrough: true,
+                showInlineCode: false,
+                showListBullets: true,
+                showListNumbers: true,
+                showListCheck: true,
+                showQuote: false,
+                showIndent: false,
+                showLink: false,
+                showColorButton: false,
+                showBackgroundColorButton: false,
+                showClearFormat: true,
+                showAlignmentButtons: false,
+                showHeaderStyle: true,
+                showSubscript: false,
+                showSuperscript: false,
+                showFontFamily: false,
+                showFontSize: false,
+                showCodeBlock: false,
+                showSearchButton: false,
+                showDirection: false,
+                showDividers: false,
+                showSmallButton: false,
+                showInlineImageButton: true,
+                showLineHeightButton: false,
+              ),
+            ),
+            Divider(height: 1, color: dividerColor),
+            // Quill editor
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: quill.QuillEditor.basic(
                   controller: _contentCtrl,
-                  cursorColor: textColor,
-                  decoration: InputDecoration(
-                    hintText: 'Tulis catatan di sini...',
-                    hintStyle: TextStyle(color: hintColor),
-                    border: InputBorder.none,
+                  focusNode: _focusNode,
+                  scrollController: _scrollCtrl,
+                  config: quill.QuillEditorConfig(
+                    placeholder: 'Tulis catatan di sini...',
+                    padding: EdgeInsets.zero,
+                    embedBuilders: [],
+                    customStyles: quill.DefaultStyles(
+                      paragraph: quill.DefaultTextBlockStyle(
+                        TextStyle(fontSize: 15, color: textColor),
+                        const quill.HorizontalSpacing(0, 0),
+                        const quill.VerticalSpacing(0, 0),
+                        const quill.VerticalSpacing(0, 0),
+                        null,
+                      ),
+                    ),
                   ),
-                  style: TextStyle(color: textColor),
-                  maxLines: null,
-                  expands: true,
-                  textAlignVertical: TextAlignVertical.top,
                 ),
               ),
-              if (_working.tagIds.isNotEmpty) _tagChips(tags, textColor),
-            ],
-          ),
+            ),
+            // Tag chips
+            if (_working.tagIds.isNotEmpty)
+              _tagChips(tags, textColor),
+          ],
         ),
       ),
     );
@@ -305,6 +386,7 @@ class _EditScreenState extends State<EditScreen> {
       height: 40,
       child: ListView(
         scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         children: _working.tagIds
             .where(map.containsKey)
             .map((id) {
@@ -312,9 +394,9 @@ class _EditScreenState extends State<EditScreen> {
               return Padding(
                 padding: const EdgeInsets.only(right: 6),
                 child: Chip(
-                  label: Text(tag.name, style: TextStyle(color: textColor)),
+                  label: Text(tag.name, style: TextStyle(color: textColor, fontSize: 12)),
                   backgroundColor: textColor.withOpacity(0.15),
-                  deleteIcon: Icon(Icons.close, size: 16, color: textColor),
+                  deleteIcon: Icon(Icons.close, size: 14, color: textColor),
                   onDeleted: () => setState(() => _working.tagIds.remove(id)),
                 ),
               );
@@ -324,66 +406,9 @@ class _EditScreenState extends State<EditScreen> {
     );
   }
 
-  Future<void> _pickImage() async {
-    final source = await showImageSourceSheet(context);
-    if (source == null) return;
-
-    setState(() => _saving = true);
-    try {
-      if (source == 'gallery') {
-        final list = await ImageAttachmentService().pickFromGallery();
-        if (list.isNotEmpty) {
-          setState(() => _attachments.addAll(list));
-        }
-      } else if (source == 'camera') {
-        final path = await ImageAttachmentService().pickFromCamera();
-        if (path != null) {
-          setState(() => _attachments.add(path));
-        }
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  void _removeAttachment(int index) async {
-    final path = _attachments[index];
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Hapus Gambar?'),
-        content: const Text('Gambar akan dihapus dari catatan.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Hapus')),
-        ],
-      ),
-    );
-    if (ok == true) {
-      await ImageAttachmentService().deleteFile(path);
-      setState(() => _attachments.removeAt(index));
-    }
-  }
-
-  void _previewImage(String path) {
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: GestureDetector(
-          onTap: () => Navigator.pop(ctx),
-          child: InteractiveViewer(
-            child: Image.file(File(path)),
-          ),
-        ),
-      ),
-    );
-  }
-
   Future<void> _pickReminder() async {
     final now = DateTime.now();
     final initial = _reminder ?? now.add(const Duration(minutes: 5));
-
     final date = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -392,18 +417,12 @@ class _EditScreenState extends State<EditScreen> {
     );
     if (date == null) return;
     if (!mounted) return;
-
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(initial),
     );
     if (time == null) return;
-
-    final picked = DateTime(
-      date.year, date.month, date.day,
-      time.hour, time.minute, 0, 0, 0,
-    );
-
+    final picked = DateTime(date.year, date.month, date.day, time.hour, time.minute, 0, 0, 0);
     if (picked.isBefore(DateTime.now().add(const Duration(seconds: 30)))) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -412,7 +431,6 @@ class _EditScreenState extends State<EditScreen> {
       }
       return;
     }
-
     setState(() => _reminder = picked);
   }
 
@@ -438,11 +456,9 @@ class _EditScreenState extends State<EditScreen> {
             ...colors.map((c) => GestureDetector(
                   onTap: () => Navigator.pop(ctx, c),
                   child: Container(
-                    width: 44,
-                    height: 44,
+                    width: 44, height: 44,
                     decoration: BoxDecoration(
-                      color: c,
-                      shape: BoxShape.circle,
+                      color: c, shape: BoxShape.circle,
                       border: Border.all(color: Colors.black26),
                     ),
                   ),
@@ -450,8 +466,7 @@ class _EditScreenState extends State<EditScreen> {
             GestureDetector(
               onTap: () => Navigator.pop(ctx, Colors.transparent),
               child: Container(
-                width: 44,
-                height: 44,
+                width: 44, height: 44,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.black26),
@@ -485,10 +500,7 @@ class _EditScreenState extends State<EditScreen> {
             ),
             const Divider(height: 1),
             ...np.notebooks.map((nb) => ListTile(
-                  leading: CircleAvatar(
-                    radius: 10,
-                    backgroundColor: Color(nb.color),
-                  ),
+                  leading: CircleAvatar(radius: 10, backgroundColor: Color(nb.color)),
                   title: Text(nb.name),
                   selected: _working.notebookId == nb.id,
                   onTap: () => Navigator.pop(ctx, nb.id),
@@ -551,19 +563,15 @@ class _EditScreenState extends State<EditScreen> {
                 Flexible(
                   child: SingleChildScrollView(
                     child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                      spacing: 8, runSpacing: 8,
                       children: tp.tags.map((Tag t) {
                         final sel = _working.tagIds.contains(t.id);
                         return FilterChip(
                           label: Text(t.name),
                           selected: sel,
                           onSelected: (v) => setState(() {
-                            if (v) {
-                              _working.tagIds.add(t.id);
-                            } else {
-                              _working.tagIds.remove(t.id);
-                            }
+                            if (v) { _working.tagIds.add(t.id); }
+                            else { _working.tagIds.remove(t.id); }
                           }),
                         );
                       }).toList(),
