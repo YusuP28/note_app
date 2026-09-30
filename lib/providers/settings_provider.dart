@@ -18,12 +18,14 @@ class SettingsProvider extends ChangeNotifier {
   static const _kSound = 'notification_sound';
   static const _kAutoBackupDays = 'auto_backup_days';
   static const _kLastAutoBackup = 'last_auto_backup';
+  static const _kUseOriginalQuality = 'use_original_quality';
 
   SortBy _sort = SortBy.updatedDesc;
   ViewMode _view = ViewMode.list;
   String _notificationSound = 'sound1';
   int _autoBackupDays = 0; // 0 = off
   int _lastAutoBackupMs = 0;
+  bool _useOriginalQuality = false;
 
   SortBy get sort => _sort;
   ViewMode get view => _view;
@@ -33,6 +35,7 @@ class SettingsProvider extends ChangeNotifier {
   DateTime? get lastAutoBackup => _lastAutoBackupMs > 0
       ? DateTime.fromMillisecondsSinceEpoch(_lastAutoBackupMs)
       : null;
+  bool get useOriginalQuality => _useOriginalQuality;
 
   // Alias untuk kompatibilitas (kalau ada yang pakai isGrid)
   bool get isGrid => _view == ViewMode.grid;
@@ -55,6 +58,7 @@ class SettingsProvider extends ChangeNotifier {
     _notificationSound = snd ?? 'sound1';
     _autoBackupDays = p.getInt(_kAutoBackupDays) ?? 0;
     _lastAutoBackupMs = p.getInt(_kLastAutoBackup) ?? 0;
+    _useOriginalQuality = p.getBool(_kUseOriginalQuality) ?? false;
 
     notifyListeners();
   }
@@ -81,6 +85,13 @@ class SettingsProvider extends ChangeNotifier {
     _autoBackupDays = days;
     final p = await SharedPreferences.getInstance();
     await p.setInt(_kAutoBackupDays, days);
+    notifyListeners();
+  }
+
+  Future<void> setUseOriginalQuality(bool v) async {
+    _useOriginalQuality = v;
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_kUseOriginalQuality, v);
     notifyListeners();
   }
 

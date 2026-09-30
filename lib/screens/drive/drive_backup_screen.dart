@@ -144,6 +144,10 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
     );
   }
 
+  String _lastSyncInfo() {
+    return 'Terakhir sync: Belum ada (klik Backup untuk sync)';
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = _drive.currentUser;
@@ -194,6 +198,19 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
             ),
 
           const SizedBox(height: 8),
+
+          // Info terakhir sync
+          if (user != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              child: Text(
+                _lastSyncInfo(),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
 
           // Tombol backup
           Card(

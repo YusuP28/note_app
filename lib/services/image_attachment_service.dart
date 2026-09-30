@@ -10,13 +10,20 @@ class ImageAttachmentService {
   ImageAttachmentService._();
 
   final ImagePicker _picker = ImagePicker();
+  bool _useOriginal = false;
+
+  void setUseOriginal(bool v) {
+    _useOriginal = v;
+    debugPrint('Use original quality: $v');
+  }
 
   /// Ambil dari galeri
   Future<List<String>> pickFromGallery() async {
     try {
+      final useOriginal = _useOriginal;
       final files = await _picker.pickMultiImage(
-        imageQuality: 85,
-        maxWidth: 1920,
+        imageQuality: useOriginal ? null : 85,
+        maxWidth: useOriginal ? null : 1920,
       );
       if (files.isEmpty) return [];
       final saved = <String>[];
@@ -34,10 +41,11 @@ class ImageAttachmentService {
   /// Ambil dari kamera
   Future<String?> pickFromCamera() async {
     try {
+      final useOriginal = _useOriginal;
       final f = await _picker.pickImage(
         source: ImageSource.camera,
-        imageQuality: 85,
-        maxWidth: 1920,
+        imageQuality: useOriginal ? null : 85,
+        maxWidth: useOriginal ? null : 1920,
       );
       if (f == null) return null;
       return await _saveToApp(f);

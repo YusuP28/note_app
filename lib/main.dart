@@ -14,6 +14,7 @@ import 'services/migration_service.dart';
 import 'services/backup_service.dart';
 import 'services/alarm_service.dart';
 import 'services/auto_backup_service.dart';
+import 'services/image_attachment_service.dart';
 import 'themes/app_theme.dart';
 import 'utils/locale_init.dart';
 
@@ -27,6 +28,7 @@ Future<void> main() async {
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     final sp = SettingsProvider();
     await sp.load();
+    ImageAttachmentService().setUseOriginal(sp.useOriginalQuality);
     final gd = GoogleDriveService();
     await gd.signInSilently();
     await AutoBackupService().checkAndRun(sp);

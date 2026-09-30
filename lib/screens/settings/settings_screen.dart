@@ -7,6 +7,7 @@ import '../../providers/settings_provider.dart';
 import '../../providers/note_provider.dart';
 import '../../services/backup_service.dart';
 import '../../services/alarm_service.dart';
+import '../../services/image_attachment_service.dart';
 import '../drive/drive_backup_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -160,6 +161,16 @@ class SettingsScreen extends StatelessWidget {
                 style: const TextStyle(fontSize: 11, color: Colors.grey),
               ),
             ),
+          SwitchListTile(
+            secondary: const Icon(Icons.high_quality_outlined),
+            title: const Text('Ukuran Foto Asli'),
+            subtitle: const Text('Foto tidak dikompresi (butuh lebih banyak ruang)'),
+            value: settings.useOriginalQuality,
+            onChanged: (val) async {
+              await settings.setUseOriginalQuality(val);
+              ImageAttachmentService().setUseOriginal(val);
+            },
+          ),
 
           const Divider(),
 
