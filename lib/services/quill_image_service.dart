@@ -46,42 +46,41 @@ class QuillImageService {
     }
   }
 
-  /// Sisip sebagai block: newline + image + newline
+  /// Sisip gambar sebagai block (dengan newline sebelum & sesudah)
   void _insertImageBlock(QuillController controller, String path) {
     final index = controller.selection.baseOffset;
     final length = controller.selection.extentOffset - index;
 
-    // Cek apakah perlu newline sebelum gambar (posisi awal / setelah newline)
     final doc = controller.document;
     final text = doc.toPlainText();
     final needLeadingNl = index > 0 && index <= text.length && text[index - 1] != '\n';
 
-    // Sisip: [optional newline] + image block + newline
-    final buffer = StringBuffer();
-    if (needLeadingNl) buffer.write('\n');
-    buffer.write('\uFFFC'); // BlockEmbed placeholder
-    buffer.write('\n');
+    // Sisip newline sebelum (kalau perlu)
+    if (needLeadingNl) {
+      controller.replaceText(
+        index,
+        0,
+        '\n',
+        TextSelection.collapsed(offset: index + 1),
+      );
+    }
 
+    final insertAt = index + (needLeadingNl ? 1 : 0);
+
+    // Sisip BlockEmbed.image
     controller.replaceText(
-      index,
+      insertAt,
       length,
-      buffer.toString(),
-      TextSelection.collapsed(offset: index + buffer.length),
+      BlockEmbed.image(path),
+      TextSelection.collapsed(offset: insertAt + 1),
     );
 
-    // Set attribut BlockEmbed pada karakter U+FFFC
-    final imageIndex = index + (needLeadingNl ? 1 : 0);
-    controller.formatText(
-      imageIndex,
-      1,
-      Attribute.embed.name,
-      Attribute.fromKeyValue('image', path),
-    );
-
-    // Pastikan posisi cursor setelah newline terakhir
-    controller.updateSelection(
-      TextSelection.collapsed(offset: index + buffer.length),
-      ChangeSource.local,
+    // Sisip newline setelah gambar
+    controller.replaceText(
+      insertAt + 1,
+      0,
+      '\n',
+      TextSelection.collapsed(offset: insertAt + 2),
     );
   }
 
