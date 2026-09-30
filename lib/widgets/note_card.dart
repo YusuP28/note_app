@@ -61,10 +61,10 @@ class NoteCard extends StatelessWidget {
                     Icon(Icons.lock_outline, size: 14, color: scheme.primary),
                 ],
               ),
-              if (note.content.isNotEmpty) ...[
+              if (note.plainText.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(
-                  note.content,
+                  note.plainText,
                   maxLines: gridMode ? 4 : 3,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),

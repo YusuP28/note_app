@@ -96,7 +96,7 @@ class NoteProvider extends ChangeNotifier {
       final rows = await db.rawQuery(
         "SELECT * FROM notes "
         "WHERE is_trashed = 0 AND is_archived = 0 "
-        "AND (title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\') "
+        "AND (title LIKE ? ESCAPE '\\' OR plain_text LIKE ? ESCAPE '\\') "
         "ORDER BY is_pinned DESC, updated_at DESC",
         [like, like],
       );
