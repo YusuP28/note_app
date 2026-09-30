@@ -9,7 +9,7 @@ class DatabaseService {
 
   static Database? _db;
   static const int _version = 1;
-  static const String _dbName = 'note_app_v5.db';
+  static const String _dbName = 'note_app_v6.db';
 
   Future<Database> get database async {
     if (_db != null) return _db!;
@@ -63,6 +63,7 @@ class DatabaseService {
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL DEFAULT '',
         content TEXT NOT NULL DEFAULT '',
+        plain_text TEXT NOT NULL DEFAULT '',
         notebook_id TEXT,
         color INTEGER,
         is_pinned INTEGER NOT NULL DEFAULT 0,

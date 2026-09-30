@@ -1,7 +1,8 @@
 class Note {
   final String id;
   String title;
-  String content;
+  String content; // sekarang = Quill Delta JSON
+  String plainText; // text tanpa format (untuk search & preview)
   String? notebookId;
   int? color;
   bool isPinned;
@@ -20,6 +21,7 @@ class Note {
     required this.id,
     this.title = '',
     this.content = '',
+    this.plainText = '',
     this.notebookId,
     this.color,
     this.isPinned = false,
@@ -39,6 +41,7 @@ class Note {
         'id': id,
         'title': title,
         'content': content,
+        'plain_text': plainText,
         'notebook_id': notebookId,
         'color': color,
         'is_pinned': isPinned ? 1 : 0,
@@ -58,6 +61,7 @@ class Note {
         id: m['id'] as String,
         title: (m['title'] as String?) ?? '',
         content: (m['content'] as String?) ?? '',
+        plainText: (m['plain_text'] as String?) ?? '',
         notebookId: m['notebook_id'] as String?,
         color: m['color'] as int?,
         isPinned: (m['is_pinned'] as int? ?? 0) == 1,
@@ -82,6 +86,7 @@ class Note {
   Note copyWith({
     String? title,
     String? content,
+    String? plainText,
     String? notebookId,
     bool clearNotebook = false,
     int? color,
@@ -102,6 +107,7 @@ class Note {
       id: id,
       title: title ?? this.title,
       content: content ?? this.content,
+      plainText: plainText ?? this.plainText,
       notebookId: clearNotebook ? null : (notebookId ?? this.notebookId),
       color: clearColor ? null : (color ?? this.color),
       isPinned: isPinned ?? this.isPinned,
