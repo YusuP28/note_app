@@ -4,6 +4,32 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
+import 'dart:io' show HttpClient, SecurityContext;
+
+/// HTTP client yang bypass DNS issue dengan custom resolver
+class _CustomHttpClient extends http.BaseClient {
+  final HttpClient _inner = HttpClient();
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final uri = request.url;
+    final req = await _inner.openUrl(request.method, uri);
+    request.headers.forEach((k, v) => req.headers.set(k, v));
+    if (request is http.Request) {
+      req.add(request.bodyBytes);
+    }
+    final resp = await req.close();
+    return http.StreamedResponse(
+      resp,
+      resp.statusCode,
+      contentLength: resp.contentLength,
+      request: request,
+      headers: resp.headers,
+      isRedirect: resp.isRedirect,
+      reasonPhrase: resp.reasonPhrase,
+    );
+  }
+}
+
 
 class GoogleDriveService {
   static final GoogleDriveService _i = GoogleDriveService._();
@@ -65,7 +91,7 @@ class GoogleDriveService {
 
     final auth = await account.authentication;
     final client = _AuthenticatedClient(
-      http.Client(),
+      _CustomHttpClient(),
       auth.accessToken ?? '',
     );
     return drive.DriveApi(client);
