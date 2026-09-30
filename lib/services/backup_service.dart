@@ -79,6 +79,15 @@ class BackupService {
   }
 
   /// Import dari file JSON backup v2. [merge]=true → gabung, false → replace.
+  /// Tulis JSON string ke temp file, return path
+  Future<String> writeTempJson(String content) async {
+    final dir = await getTemporaryDirectory();
+    final file = File(
+        '${dir.path}/note_app_restore_${DateTime.now().millisecondsSinceEpoch}.json');
+    await file.writeAsString(content);
+    return file.path;
+  }
+
   Future<int> importFromFile(String path, {bool merge = true}) async {
     final file = File(path);
     final data = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
