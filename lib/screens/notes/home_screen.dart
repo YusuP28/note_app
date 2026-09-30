@@ -8,6 +8,7 @@ import '../../providers/tag_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/note_card.dart';
+import '../../widgets/note_context_sheet.dart';
 import '../archive/archive_screen.dart';
 import '../notebooks/notebooks_screen.dart';
 import '../search/search_screen.dart';
@@ -53,6 +54,12 @@ class _HomeScreenState extends State<HomeScreen> {
     if (result != null && mounted) {
       await context.read<NoteProvider>().updateNote(result);
     }
+  }
+
+  Future<void> _showContextMenu(Note note) async {
+    final action = await showNoteContextSheet(context, note);
+    if (action == null || !mounted) return;
+    await handleNoteAction(context, note, action);
   }
 
   Future<void> _confirmDelete(Note note) async {
@@ -221,7 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               note: n,
                               gridMode: true,
                               onTap: () => _openNote(n),
-                              onLongPress: () => _confirmDelete(n),
+                              onLongPress: () => _showContextMenu(n),
                             );
                           },
                         )
@@ -233,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             return NoteCard(
                               note: n,
                               onTap: () => _openNote(n),
-                              onLongPress: () => _confirmDelete(n),
+                              onLongPress: () => _showContextMenu(n),
                             );
                           },
                         ),
