@@ -10,6 +10,7 @@ class Note {
   bool isLocked;
   DateTime? trashedAt;
   DateTime? reminderAt;
+  List<String> attachments;
   int sortOrder;
   final DateTime createdAt;
   DateTime updatedAt;
@@ -27,6 +28,7 @@ class Note {
     this.isLocked = false,
     this.trashedAt,
     this.reminderAt,
+    this.attachments = const [],
     this.sortOrder = 0,
     required this.createdAt,
     required this.updatedAt,
@@ -45,6 +47,7 @@ class Note {
         'is_locked': isLocked ? 1 : 0,
         'trashed_at': trashedAt?.millisecondsSinceEpoch,
         'reminder_at': reminderAt?.millisecondsSinceEpoch,
+        'attachments': attachments.isEmpty ? null : attachments.join('|'),
         'sort_order': sortOrder,
         'created_at': createdAt.millisecondsSinceEpoch,
         'updated_at': updatedAt.millisecondsSinceEpoch,
@@ -67,6 +70,9 @@ class Note {
         reminderAt: m['reminder_at'] != null
             ? DateTime.fromMillisecondsSinceEpoch(m['reminder_at'] as int)
             : null,
+        attachments: (m['attachments'] as String?)?.isNotEmpty == true
+            ? (m['attachments'] as String).split('|')
+            : const [],
         sortOrder: (m['sort_order'] as int?) ?? 0,
         createdAt: DateTime.fromMillisecondsSinceEpoch(m['created_at'] as int),
         updatedAt: DateTime.fromMillisecondsSinceEpoch(m['updated_at'] as int),
@@ -87,6 +93,7 @@ class Note {
     DateTime? trashedAt,
     DateTime? reminderAt,
     bool clearReminder = false,
+    List<String>? attachments,
     int? sortOrder,
     DateTime? updatedAt,
     List<String>? tagIds,
@@ -103,6 +110,7 @@ class Note {
       isLocked: isLocked ?? this.isLocked,
       trashedAt: trashedAt ?? this.trashedAt,
       reminderAt: clearReminder ? null : (reminderAt ?? this.reminderAt),
+      attachments: attachments ?? this.attachments,
       sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

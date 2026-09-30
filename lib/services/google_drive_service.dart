@@ -152,6 +152,43 @@ class GoogleDriveService {
     }
   }
 
+  /// Hapus backup lama, sisakan [keepLast] terbaru.
+  Future<int> cleanupOldBackups({int keepLast = 5}) async {
+    try {
+      final api = await _getDriveApi();
+      final list = await api.files.list(
+        spaces: 'appDataFolder',
+        q: "name contains 'note_app_backup_'",
+        orderBy: 'createdTime desc',
+        $fields: 'files(id, name, createdTime)',
+      );
+
+      final files = list.files ?? [];
+      if (files.length <= keepLast) {
+        debugPrint('Cleanup: hanya ${files.length} backup, skip');
+        return 0;
+      }
+
+      final toDelete = files.skip(keepLast).toList();
+      int count = 0;
+      for (final f in toDelete) {
+        if (f.id != null) {
+          try {
+            await api.files.delete(f.id!);
+            count++;
+          } catch (e) {
+            debugPrint('Delete ${f.name} gagal: $e');
+          }
+        }
+      }
+      debugPrint('Cleanup: $count backup lama dihapus');
+      return count;
+    } catch (e) {
+      debugPrint('cleanupOldBackups error: $e');
+      return 0;
+    }
+  }
+
   /// List semua backup
   Future<List<Map<String, dynamic>>> listBackups() async {
     try {
