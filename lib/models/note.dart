@@ -12,6 +12,8 @@ class Note {
   DateTime? trashedAt;
   DateTime? reminderAt;
   List<String> attachments;
+  String? bgImagePath;
+  double bgOpacity; // 0.0 - 1.0
   int sortOrder;
   final DateTime createdAt;
   DateTime updatedAt;
@@ -31,6 +33,8 @@ class Note {
     this.trashedAt,
     this.reminderAt,
     this.attachments = const [],
+    this.bgImagePath,
+    this.bgOpacity = 0.3,
     this.sortOrder = 0,
     required this.createdAt,
     required this.updatedAt,
@@ -51,6 +55,8 @@ class Note {
         'trashed_at': trashedAt?.millisecondsSinceEpoch,
         'reminder_at': reminderAt?.millisecondsSinceEpoch,
         'attachments': attachments.isEmpty ? null : attachments.join('|'),
+        'bg_image_path': bgImagePath,
+        'bg_opacity': (bgOpacity * 1000).round(),
         'sort_order': sortOrder,
         'created_at': createdAt.millisecondsSinceEpoch,
         'updated_at': updatedAt.millisecondsSinceEpoch,
@@ -77,6 +83,8 @@ class Note {
         attachments: (m['attachments'] as String?)?.isNotEmpty == true
             ? (m['attachments'] as String).split('|')
             : const [],
+        bgImagePath: m['bg_image_path'] as String?,
+        bgOpacity: m['bg_opacity'] != null ? (m['bg_opacity'] as int) / 1000.0 : 0.3,
         sortOrder: (m['sort_order'] as int?) ?? 0,
         createdAt: DateTime.fromMillisecondsSinceEpoch(m['created_at'] as int),
         updatedAt: DateTime.fromMillisecondsSinceEpoch(m['updated_at'] as int),
@@ -99,6 +107,9 @@ class Note {
     DateTime? reminderAt,
     bool clearReminder = false,
     List<String>? attachments,
+    String? bgImagePath,
+    bool clearBgImage = false,
+    double? bgOpacity,
     int? sortOrder,
     DateTime? updatedAt,
     List<String>? tagIds,
@@ -117,6 +128,8 @@ class Note {
       trashedAt: trashedAt ?? this.trashedAt,
       reminderAt: clearReminder ? null : (reminderAt ?? this.reminderAt),
       attachments: attachments ?? this.attachments,
+      bgImagePath: clearBgImage ? null : (bgImagePath ?? this.bgImagePath),
+      bgOpacity: bgOpacity ?? this.bgOpacity,
       sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

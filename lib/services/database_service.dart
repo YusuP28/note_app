@@ -9,7 +9,7 @@ class DatabaseService {
 
   static Database? _db;
   static const int _version = 1;
-  static const String _dbName = 'note_app_v6.db';
+  static const String _dbName = 'note_app_v7.db';
 
   Future<Database> get database async {
     if (_db != null) return _db!;
@@ -73,6 +73,8 @@ class DatabaseService {
         trashed_at INTEGER,
         reminder_at INTEGER,
         attachments TEXT,
+        bg_image_path TEXT,
+        bg_opacity INTEGER NOT NULL DEFAULT 300,
         sort_order INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,

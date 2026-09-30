@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
@@ -33,6 +34,8 @@ class _EditScreenState extends State<EditScreen> {
   bool _isNew = false;
   bool _saving = false;
   DateTime? _reminder;
+  String? _bgImagePath;
+  double _bgOpacity = 0.3;
   Timer? _draftTimer;
   late final String _draftKeyTitle;
   late final String _draftKeyContent;
@@ -47,6 +50,8 @@ class _EditScreenState extends State<EditScreen> {
     _contentCtrl = _buildQuillController(_working.content);
 
     _reminder = _working.reminderAt;
+    _bgImagePath = _working.bgImagePath;
+    _bgOpacity = _working.bgOpacity;
     _draftKeyTitle = 'draft_${_working.id}_title';
     _draftKeyContent = 'draft_${_working.id}_content';
 
@@ -209,6 +214,8 @@ class _EditScreenState extends State<EditScreen> {
       },
       child: Scaffold(
         backgroundColor: editorBg,
+        // Background image overlay via body
+        // (di bawah, di dalam body)
         appBar: AppBar(
           backgroundColor: editorBg,
           foregroundColor: textColor,
@@ -232,6 +239,17 @@ class _EditScreenState extends State<EditScreen> {
               icon: Icon(Icons.palette_outlined, color: textColor),
               onPressed: _pickColor,
             ),
+            IconButton(
+              tooltip: 'Background Gambar',
+              icon: Icon(Icons.wallpaper_outlined, color: textColor),
+              onPressed: _pickBackgroundImage,
+            ),
+            if (_bgImagePath != null)
+              IconButton(
+                tooltip: 'Atur Transparansi',
+                icon: Icon(Icons.opacity, color: textColor),
+                onPressed: _showOpacitySlider,
+              ),
             IconButton(
               tooltip: 'Notebook',
               icon: Icon(Icons.folder_outlined, color: textColor),
@@ -262,7 +280,20 @@ class _EditScreenState extends State<EditScreen> {
             ),
           ],
         ),
-        body: Column(
+        body: Stack(
+          children: [
+            if (_bgImagePath != null)
+              Positioned.fill(
+                child: Opacity(
+                  opacity: _bgOpacity,
+                  child: Image.file(
+                    File(_bgImagePath!),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox(),
+                  ),
+                ),
+              ),
+            Column(
           children: [
             if (_reminder != null)
               Container(
@@ -371,6 +402,74 @@ class _EditScreenState extends State<EditScreen> {
               );
             })
             .toList(),
+      ),
+    );
+  }
+
+  Future<void> _pickBackgroundImage() async {
+    final source = await showImageSourceSheet(context);
+    if (source == null) return;
+    String? path;
+    if (source == 'gallery') {
+      final files = await ImageAttachmentService().pickFromGallery();
+      if (files.isNotEmpty) path = files.first;
+    } else {
+      path = await ImageAttachmentService().pickFromCamera();
+    }
+    if (path != null) {
+      setState(() => _bgImagePath = path);
+    }
+  }
+
+  void _clearBackground() {
+    setState(() {
+      _bgImagePath = null;
+      _bgOpacity = 0.3;
+    });
+  }
+
+  void _showOpacitySlider() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Transparansi Background',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.brightness_low, size: 18),
+                  Expanded(
+                    child: Slider(
+                      value: _bgOpacity,
+                      min: 0.0,
+                      max: 1.0,
+                      divisions: 20,
+                      label: '${(_bgOpacity * 100).round()}%',
+                      onChanged: (v) {
+                        setLocal(() {});
+                        setState(() => _bgOpacity = v);
+                      },
+                    ),
+                  ),
+                  const Icon(Icons.brightness_high, size: 18),
+                ],
+              ),
+              Center(
+                child: Text('${(_bgOpacity * 100).round()}%',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 12),
+              const Text('Semakin kecil % → gambar lebih transparan',
+                  style: TextStyle(fontSize: 11, color: Colors.grey)),
+            ],
+          ),
+        ),
       ),
     );
   }
