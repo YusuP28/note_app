@@ -38,7 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
         if (!mounted) return;
         final s = context.read<SettingsProvider>();
         final n = context.read<NoteProvider>();
-        n.setSortBy(s.sort);
+        if (n.sortBy != s.sort) n.setSortBy(s.sort);
         await n.load();
         if (!mounted) return;
         await context.read<NotebookProvider>().load();

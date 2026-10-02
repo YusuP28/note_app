@@ -24,40 +24,47 @@ Future<void> main() async {
   await MigrationService().migrateIfNeeded();
   await BackupService().autoBackup();
 
+  // PRELOAD settings & theme — cegah race condition
+  final settings = SettingsProvider();
+  await settings.load();
+  final theme = ThemeProvider();
+  await theme.load();
+
   // Siapkan auto-backup service — dijalankan setelah UI muncul
   WidgetsBinding.instance.addPostFrameCallback((_) async {
-    final sp = SettingsProvider();
-    await sp.load();
-    ImageAttachmentService().setUseOriginal(sp.useOriginalQuality);
+    ImageAttachmentService().setUseOriginal(settings.useOriginalQuality);
     final gd = GoogleDriveService();
     await gd.signInSilently();
-    await AutoBackupService().checkAndRun(sp);
+    await AutoBackupService().checkAndRun(settings);
   });
 
-  runApp(const NoteApp());
+  runApp(NoteApp(settings: settings, theme: theme));
 }
 
 class NoteApp extends StatelessWidget {
-  const NoteApp({super.key});
+  final SettingsProvider settings;
+  final ThemeProvider theme;
+
+  const NoteApp({super.key, required this.settings, required this.theme});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ThemeProvider()..load()),
-        ChangeNotifierProvider(create: (_) => SettingsProvider()..load()),
+        ChangeNotifierProvider.value(value: theme),
+        ChangeNotifierProvider.value(value: settings),
         ChangeNotifierProvider(create: (_) => NoteProvider()),
         ChangeNotifierProvider(create: (_) => NotebookProvider()),
         ChangeNotifierProvider(create: (_) => TagProvider()),
       ],
       child: Consumer<ThemeProvider>(
-        builder: (context, theme, _) {
+        builder: (context, t, _) {
           return MaterialApp(
             title: 'Catatanku',
             debugShowCheckedModeBanner: false,
-            theme: AppTheme.light(theme.seed),
-            darkTheme: AppTheme.dark(theme.seed),
-            themeMode: theme.mode,
+            theme: AppTheme.light(t.seed),
+            darkTheme: AppTheme.dark(t.seed),
+            themeMode: t.mode,
             home: const _Launcher(),
           );
         },
@@ -65,7 +72,6 @@ class NoteApp extends StatelessWidget {
     );
   }
 }
-
 
 class _Launcher extends StatefulWidget {
   const _Launcher();
