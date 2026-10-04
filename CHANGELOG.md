@@ -3,6 +3,14 @@
 Format: [Keep a Changelog](https://keepachangelog.com/)
 Versioning: [Semantic Versioning](https://semver.org/)
 
+## [2.3.1] - 2026-10-04
+
+### Diperbaiki
+- **Sort mode & preferensi tidak balik ke default** setelah app dibuka ulang
+  - Preload SettingsProvider + ThemeProvider sebelum runApp
+  - NoteProvider sync sortBy dari settings (guard cek beda)
+  - Sebelumnya: sort selalu reset ke "Terbaru diubah"
+
 ## [2.3.0] - 2026-10-01
 
 ### Ditambahkan
