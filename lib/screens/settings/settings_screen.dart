@@ -29,7 +29,7 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         children: [
           // ============ TAMPILAN ============
-          _section('Tampilan'),
+          _section(context, 'Tampilan'),
           SwitchListTile(
             secondary: const Icon(Icons.dark_mode_outlined),
             title: const Text('Mode Gelap'),
@@ -42,7 +42,7 @@ class SettingsScreen extends StatelessWidget {
           const Divider(),
 
           // ============ NOTIFIKASI ============
-          _section('Notifikasi & Alarm'),
+          _section(context, 'Notifikasi & Alarm'),
           ListTile(
             leading: const Icon(Icons.music_note_outlined),
             title: const Text('Suara Alarm'),
@@ -122,7 +122,7 @@ class SettingsScreen extends StatelessWidget {
           const Divider(),
 
           // ============ GOOGLE DRIVE ============
-          _section('Google Drive'),
+          _section(context, 'Google Drive'),
           ListTile(
             leading: const Icon(Icons.cloud_outlined),
             title: const Text('Backup & Restore ke Drive'),
@@ -181,7 +181,7 @@ class SettingsScreen extends StatelessWidget {
           const Divider(),
 
           // ============ BACKUP LOKAL ============
-          _section('Backup Lokal'),
+          _section(context, 'Backup Lokal'),
           ListTile(
             leading: const Icon(Icons.save_outlined),
             title: const Text('Backup Data (JSON)'),
@@ -265,7 +265,7 @@ class SettingsScreen extends StatelessWidget {
           const Divider(),
 
           // ============ TENTANG ============
-          _section('Tentang'),
+          _section(context, 'Tentang'),
           const ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('Catatanku'),
@@ -277,7 +277,7 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _section(String text) => Padding(
+  Widget _section(BuildContext context, String text) => Padding(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
         child: Text(
           text.toUpperCase(),
