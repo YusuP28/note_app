@@ -8,6 +8,7 @@ import '../../providers/tag_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/note_card.dart';
+import '../../themes/neumo.dart';
 import '../../widgets/note_context_sheet.dart';
 import '../archive/archive_screen.dart';
 import '../notebooks/notebooks_screen.dart';
@@ -245,7 +246,11 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: _selectionMode
           ? _buildSelectionAppBar(context, p)
           : AppBar(
-        title: Text(title),
+        title: const SizedBox.shrink(),
+        elevation: 0,
+        backgroundColor: Neumo.bg(context),
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Neumo.shadowDark(context),
         actions: [
           IconButton(
             icon: const Icon(Icons.checklist),
@@ -348,9 +353,9 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: p.filter == NoteFilter.trashed ||
               p.filter == NoteFilter.archived
           ? null
-          : FloatingActionButton(
+          : NeumoFab(
+              icon: Icons.add,
               onPressed: () => _openNote(null),
-              child: const Icon(Icons.add),
             ),
     );
   }

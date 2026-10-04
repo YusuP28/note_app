@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/note.dart';
 import '../utils/date_utils.dart';
+import '../themes/neumo.dart';
 
 class NoteCard extends StatelessWidget {
   final Note note;
@@ -28,12 +29,14 @@ class NoteCard extends StatelessWidget {
 
     return Card(
       color: bg,
-      elevation: 0,
+      elevation: selected ? 2 : 6,
+      shadowColor: Neumo.shadowDark(context),
+      surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(
-          color: scheme.primary.withOpacity(selected ? 1.0 : 0.5),
-          width: selected ? 2.5 : 1.0,
+          color: scheme.primary.withOpacity(selected ? 1.0 : 0.0),
+          width: selected ? 2.5 : 0,
         ),
       ),
       margin: EdgeInsets.symmetric(
