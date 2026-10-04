@@ -9,6 +9,7 @@ import '../../services/backup_service.dart';
 import '../../services/alarm_service.dart';
 import '../../services/image_attachment_service.dart';
 import '../drive/drive_backup_screen.dart';
+import '../../themes/neumo.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -19,7 +20,12 @@ class SettingsScreen extends StatelessWidget {
     final settings = Provider.of<SettingsProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Pengaturan')),
+      appBar: AppBar(
+        title: const Text('Pengaturan'),
+        elevation: 0,
+        backgroundColor: Neumo.bg(context),
+        surfaceTintColor: Colors.transparent,
+      ),
       body: ListView(
         children: [
           // ============ TAMPILAN ============
@@ -263,7 +269,7 @@ class SettingsScreen extends StatelessWidget {
           const ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('Catatanku'),
-            subtitle: Text('Versi 2.1.1'),
+            subtitle: const Text('Versi 2.3.1'),
           ),
           const SizedBox(height: 24),
         ],
@@ -272,10 +278,15 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _section(String text) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
         child: Text(
-          text,
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+          text.toUpperCase(),
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+            color: Neumo.textSub(context),
+          ),
         ),
       );
 }
