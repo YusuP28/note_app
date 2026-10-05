@@ -37,7 +37,12 @@ jobs:
         with:
           flutter-version: '3.24.5'
           channel: 'stable'
-          cache: true
+          cache: false
+
+      - name: Clean build cache
+        run: |
+          flutter clean
+          rm -rf ~/.pub-cache/hosted/pub.dev/*/.dart_tool 2>/dev/null || true
 
       - name: Get dependencies
         run: flutter pub get
