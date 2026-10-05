@@ -225,6 +225,11 @@ class NoteProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> toggleLock(Note note) async {
+    note.isLocked = !note.isLocked;
+    await updateNote(note);
+  }
+
   Future<void> togglePin(Note note) async {
     note.isPinned = !note.isPinned;
     await updateNote(note);

@@ -6,6 +6,7 @@ import '../../providers/note_provider.dart';
 import '../../providers/notebook_provider.dart';
 import '../../providers/tag_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../services/lock_service.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/note_card.dart';
 import '../../themes/neumo.dart';
@@ -50,6 +51,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openNote(Note? note) async {
+    // Cek kalau catatan locked
+    if (note != null && note.isLocked) {
+      final lock = LockService();
+      final enabled = await lock.isEnabled();
+      if (enabled) {
+        if (!mounted) return;
+        final unlocked = await _promptUnlock(lock);
+        if (!unlocked) return;
+      }
+    }
+
+    if (!mounted) return;
     final result = await Navigator.push<Note?>(
       context,
       MaterialPageRoute(builder: (_) => EditScreen(note: note)),
@@ -57,6 +70,158 @@ class _HomeScreenState extends State<HomeScreen> {
     if (result != null && mounted) {
       await context.read<NoteProvider>().updateNote(result);
     }
+  }
+
+  Future<bool> _promptUnlock(LockService lock) async {
+    // Coba fingerprint dulu kalau enabled
+    final fpEnabled = await lock.isFingerprintEnabled();
+    if (fpEnabled && await lock.canUseBiometric()) {
+      final ok = await lock.authenticateBiometric();
+      if (ok) return true;
+    }
+
+    if (!mounted) return false;
+    final ctrl = TextEditingController();
+    final hint = await lock.getHint();
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Catatan Terkunci'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: ctrl,
+              keyboardType: TextInputType.number,
+              obscureText: true,
+              maxLength: 6,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'PIN',
+                hintText: hint != null ? 'Hint: $hint' : null,
+                border: const OutlineInputBorder(),
+                counterText: '',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, 'forgot'),
+                  child: const Text('Lupa PIN?'),
+                ),
+                if (fpEnabled)
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, 'bio'),
+                    child: const Text('Fingerprint'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: const Text('Buka'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == null) return false;
+
+    if (result == 'bio') {
+      final ok = await lock.authenticateBiometric();
+      return ok;
+    }
+
+    if (result == 'forgot') {
+      if (!mounted) return false;
+      return await _promptBackupCode(lock);
+    }
+
+    final valid = await lock.verifyPin(result);
+    if (!valid && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('PIN salah')),
+      );
+    }
+    return valid;
+  }
+
+  Future<bool> _promptBackupCode(LockService lock) async {
+    final codeCtrl = TextEditingController();
+    final newPinCtrl = TextEditingController();
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reset PIN'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Masukkan backup code + PIN baru'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: codeCtrl,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              decoration: const InputDecoration(
+                labelText: 'Backup Code',
+                border: OutlineInputBorder(),
+                counterText: '',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: newPinCtrl,
+              keyboardType: TextInputType.number,
+              obscureText: true,
+              maxLength: 6,
+              decoration: const InputDecoration(
+                labelText: 'PIN Baru',
+                border: OutlineInputBorder(),
+                counterText: '',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true) return false;
+
+    final success = await lock.resetWithBackupCode(
+      codeCtrl.text.trim(),
+      newPinCtrl.text.trim(),
+    );
+    if (!mounted) return false;
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('PIN berhasil direset')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Backup code salah')),
+      );
+    }
+    return false; // user harus buka ulang pakai PIN baru
   }
 
   void _toggleSelection(String id) {
@@ -172,6 +337,11 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () => Navigator.pop(ctx, 'archive'),
             ),
             ListTile(
+              leading: Icon(note.isLocked ? Icons.lock_open : Icons.lock_outline),
+              title: Text(note.isLocked ? 'Buka Kunci' : 'Kunci Catatan'),
+              onTap: () => Navigator.pop(ctx, 'lock'),
+            ),
+            ListTile(
               leading: const Icon(Icons.delete_outline),
               title: const Text('Pindah ke Sampah'),
               onTap: () => Navigator.pop(ctx, 'trash'),
@@ -183,6 +353,14 @@ class _HomeScreenState extends State<HomeScreen> {
     if (act == 'pin') await p.togglePin(note);
     if (act == 'archive') await p.archive(note, true);
     if (act == 'trash') await p.trash(note);
+    if (act == 'lock') {
+      if (!mounted) return;
+      await p.toggleLock(note);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(note.isLocked ? 'Catatan dikunci' : 'Kunci dibuka')),
+      );
+    }
   }
 
   void _openDrawerItem(Widget screen) {
