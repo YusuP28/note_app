@@ -29,6 +29,10 @@ dependencies:
   intl: ^0.19.0
   uuid: ^4.5.1
 
+  # Security
+  crypto: ^3.0.6
+  local_auth: ^2.3.0
+
   # Google Drive backup
   google_sign_in: ^6.2.1
   googleapis: ^13.2.0

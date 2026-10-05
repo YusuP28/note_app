@@ -8,6 +8,7 @@ import '../../providers/note_provider.dart';
 import '../../services/backup_service.dart';
 import '../../services/alarm_service.dart';
 import '../../services/image_attachment_service.dart';
+import '../../services/lock_service.dart';
 import '../drive/drive_backup_screen.dart';
 import '../../themes/neumo.dart';
 
@@ -264,6 +265,15 @@ class SettingsScreen extends StatelessWidget {
 
           const Divider(),
 
+          // ============ KEAMANAN ============
+          _section(context, 'Keamanan'),
+          ListTile(
+            leading: const Icon(Icons.lock_outline),
+            title: const Text('Kunci Aplikasi'),
+            subtitle: const Text('PIN + fingerprint untuk catatan terkunci'),
+            onTap: () => _openLockSettings(context),
+          ),
+
           // ============ TENTANG ============
           _section(context, 'Tentang'),
           const ListTile(
@@ -272,6 +282,292 @@ class SettingsScreen extends StatelessWidget {
             subtitle: const Text('Versi 2.3.1'),
           ),
           const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openLockSettings(BuildContext context) async {
+    final lock = LockService();
+    final enabled = await lock.isEnabled();
+    if (!context.mounted) return;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(enabled ? 'Kunci Aplikasi' : 'Aktifkan Kunci?'),
+        content: Text(enabled
+            ? 'Fitur kunci aktif. Mau ubah atau matikan?'
+            : 'Aktifkan PIN untuk mengunci catatan tertentu.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          if (enabled)
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await _changePin(context);
+              },
+              child: const Text('Ubah PIN'),
+            ),
+          if (enabled)
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await _disableLock(context);
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Matikan'),
+            ),
+          if (!enabled)
+            FilledButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await _setupPin(context);
+              },
+              child: const Text('Aktifkan'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _setupPin(BuildContext context) async {
+    final pinCtrl = TextEditingController();
+    final hintCtrl = TextEditingController();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Buat PIN'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: pinCtrl,
+              keyboardType: TextInputType.number,
+              obscureText: true,
+              maxLength: 6,
+              decoration: const InputDecoration(
+                labelText: 'PIN (4-6 digit)',
+                border: OutlineInputBorder(),
+                counterText: '',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: hintCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Hint (opsional)',
+                hintText: 'Contoh: angka favorit',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+    if (result != true) return;
+
+    final pin = pinCtrl.text.trim();
+    if (pin.length < 4 || pin.length > 6) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('PIN harus 4-6 digit')),
+        );
+      }
+      return;
+    }
+    final code = await LockService().setPin(pin, hint: hintCtrl.text.trim());
+    if (context.mounted) {
+      await _showBackupCodeDialog(context, code);
+    }
+  }
+
+  Future<void> _changePin(BuildContext context) async {
+    final oldCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    final hintCtrl = TextEditingController();
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Ubah PIN'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: oldCtrl,
+              keyboardType: TextInputType.number,
+              obscureText: true,
+              maxLength: 6,
+              decoration: const InputDecoration(
+                labelText: 'PIN Lama',
+                border: OutlineInputBorder(),
+                counterText: '',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: newCtrl,
+              keyboardType: TextInputType.number,
+              obscureText: true,
+              maxLength: 6,
+              decoration: const InputDecoration(
+                labelText: 'PIN Baru',
+                border: OutlineInputBorder(),
+                counterText: '',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: hintCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Hint (opsional)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    final lock = LockService();
+    final valid = await lock.verifyPin(oldCtrl.text.trim());
+    if (!valid) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('PIN lama salah')),
+        );
+      }
+      return;
+    }
+    final newPin = newCtrl.text.trim();
+    if (newPin.length < 4 || newPin.length > 6) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('PIN baru harus 4-6 digit')),
+        );
+      }
+      return;
+    }
+    final code = await lock.setPin(newPin, hint: hintCtrl.text.trim());
+    if (context.mounted) {
+      await _showBackupCodeDialog(context, code);
+    }
+  }
+
+  Future<void> _disableLock(BuildContext context) async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Matikan Kunci'),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.number,
+          obscureText: true,
+          maxLength: 6,
+          decoration: const InputDecoration(
+            labelText: 'PIN',
+            border: OutlineInputBorder(),
+            counterText: '',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Matikan'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    final valid = await LockService().verifyPin(ctrl.text.trim());
+    if (!valid) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('PIN salah')),
+        );
+      }
+      return;
+    }
+    await LockService().disable();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kunci dimatikan')),
+      );
+    }
+  }
+
+  Future<void> _showBackupCodeDialog(BuildContext context, String code) async {
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Kode Backup'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Simpan kode ini di tempat aman:'),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(ctx).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                code,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 6,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Kode ini bisa dipakai kalau lupa PIN. Sekali pakai, PIN akan direset.',
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK, sudah dicatat'),
+          ),
         ],
       ),
     );
