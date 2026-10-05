@@ -3,6 +3,36 @@
 Format: [Keep a Changelog](https://keepachangelog.com/)
 Versioning: [Semantic Versioning](https://semver.org/)
 
+## [2.4.0] - 2026-10-05
+
+### Ditambahkan
+- **PIN lock master** (LockService)
+  - PIN hash SHA-256 (aman, bukan plain text)
+  - Hint untuk bantuan kalau lupa PIN
+  - Backup code 6 digit (emergency reset)
+  - Fingerprint support via local_auth
+- **Lock/unlock per catatan**
+  - Menu "Kunci Catatan" / "Buka Kunci" di context sheet
+  - Icon gembok di card catatan locked
+  - Prompt PIN saat buka catatan terkunci
+  - Reset PIN via backup code
+- **Tag color picker** — 15 warna preset
+- **Markdown toolbar Quill** (quote, link, code, indent, align, color)
+- **Neumorphism design system**
+  - lib/themes/neumo.dart (NeumoCard, NeumoFab, dll)
+  - AppBar + Card shadow neumo
+  - Settings neumo + section uppercase
+
+### Diperbaiki
+- Menu "Kunci Catatan" sekarang tampil di context sheet (long-press)
+- GH Actions cache stale → force clean build
+- Versi hardcoded di Settings (2.1.1 → 2.4.0)
+- `_section()` context error
+
+### Diubah
+- Context sheet sekarang punya menu lock/unlock
+- Workflow GH Actions: cache: false + flutter clean
+
 ## [2.3.1] - 2026-10-04
 
 ### Diperbaiki
