@@ -67,6 +67,13 @@ Future<String?> showNoteContextSheet(BuildContext context, Note note) async {
           ),
           // Aksi: Arsip
           _tile(ctx, Icons.archive_outlined, 'Arsipkan', 'archive'),
+            // Aksi: Kunci / Buka Kunci
+            _tile(
+              ctx,
+              note.isLocked ? Icons.lock_open : Icons.lock_outline,
+              note.isLocked ? 'Buka Kunci' : 'Kunci Catatan',
+              'lock',
+            ),
           // Aksi: Bagikan sebagai TXT
           _tile(ctx, Icons.text_snippet_outlined,
               'Bagikan sebagai .txt', 'share_txt'),
@@ -129,6 +136,11 @@ Future<void> handleNoteAction(
     case 'archive':
       await provider.archive(note, true);
       _snack(context, 'Diarsipkan');
+      break;
+
+    case 'lock':
+      await provider.toggleLock(note);
+      _snack(context, note.isLocked ? 'Catatan dikunci' : 'Kunci dibuka');
       break;
 
     case 'share_txt':
