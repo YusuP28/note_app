@@ -286,7 +286,8 @@ class _EditScreenState extends State<EditScreen> {
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         await _save(silent: true);
-        if (mounted) Navigator.pop(context);
+        if (!mounted) return;
+        Navigator.of(context).maybePop();
       },
       child: Scaffold(
         backgroundColor: editorBg,

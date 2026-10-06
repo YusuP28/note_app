@@ -29,6 +29,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _initialized = false;
   bool _selectionMode = false;
+  DateTime? _lastBackPress;
   final Set<String> _selectedIds = {};
 
   @override
@@ -63,8 +64,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (!mounted) return;
-    final result = await Navigator.push<Note?>(
-      context,
+    final nav = Navigator.of(context);
+    if (!nav.mounted) return;
+    final result = await nav.push<Note?>(
       MaterialPageRoute(builder: (_) => EditScreen(note: note)),
     );
     if (result != null && mounted) {
@@ -420,11 +422,33 @@ class _HomeScreenState extends State<HomeScreen> {
       NoteFilter.trashed => 'Sampah',
     };
 
-    return Scaffold(
-      appBar: _selectionMode
+        return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final now = DateTime.now();
+        if (_lastBackPress != null &&
+            now.difference(_lastBackPress!) < const Duration(seconds: 2)) {
+          if (mounted) Navigator.of(context).maybePop();
+          return;
+        }
+        _lastBackPress = now;
+        if (mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tekan sekali lagi untuk keluar'),
+              duration: Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
+      child: Scaffold(
+        appBar: _selectionMode
           ? _buildSelectionAppBar(context, p)
           : AppBar(
-        title: const SizedBox.shrink(),
+          title: const SizedBox.shrink(),
         elevation: 0,
         backgroundColor: Neumo.bg(context),
         surfaceTintColor: Colors.transparent,
@@ -535,6 +559,7 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: Icons.add,
               onPressed: () => _openNote(null),
             ),
+    );
     );
   }
 
