@@ -445,123 +445,134 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       child: Scaffold(
         appBar: _selectionMode
-          ? _buildSelectionAppBar(context, p)
-          : AppBar(
-            title: const SizedBox.shrink(),
-            elevation: 0,
-            backgroundColor: Neumo.bg(context),
-            surfaceTintColor: Colors.transparent,
-            shadowColor: Neumo.shadowDark(context),
-            actions: [
-          IconButton(
-            icon: const Icon(Icons.checklist),
-            tooltip: 'Pilih Banyak',
-            onPressed: () => setState(() => _selectionMode = true),
-          ),
-          IconButton(
-            icon: Icon(s.view == ViewMode.list ? Icons.grid_view : Icons.view_list),
-            tooltip: s.view == ViewMode.list ? 'Grid' : 'List',
-            onPressed: () => s.toggleView(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.sort),
-            tooltip: 'Urutkan',
-            onPressed: _showSortMenu,
-          ),
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SearchScreen()),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            ),
-          ),
-        ],
-      ),
-      drawer: _selectionMode ? null : _buildDrawer(context, p),
-      body: p.loading
-          ? const Center(child: CircularProgressIndicator())
-          : p.error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline,
-                            size: 56, color: Colors.red),
-                        const SizedBox(height: 12),
-                        Text(p.error!, textAlign: TextAlign.center),
-                        const SizedBox(height: 16),
-                        FilledButton(
-                          onPressed: () => p.load(),
-                          child: const Text('Coba Lagi'),
-                        ),
-                      ],
+            ? _buildSelectionAppBar(context, p)
+            : AppBar(
+                title: const SizedBox.shrink(),
+                elevation: 0,
+                backgroundColor: Neumo.bg(context),
+                surfaceTintColor: Colors.transparent,
+                shadowColor: Neumo.shadowDark(context),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.checklist),
+                    tooltip: 'Pilih Banyak',
+                    onPressed: () => setState(() => _selectionMode = true),
+                  ),
+                  IconButton(
+                    icon: Icon(s.view == ViewMode.list
+                        ? Icons.grid_view
+                        : Icons.view_list),
+                    tooltip: s.view == ViewMode.list ? 'Grid' : 'List',
+                    onPressed: () => s.toggleView(),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.sort),
+                    tooltip: 'Urutkan',
+                    onPressed: _showSortMenu,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.search),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SearchScreen()),
                     ),
                   ),
-                )
-              : p.notes.isEmpty
-                  ? const EmptyState(
-                      icon: Icons.note_outlined,
-            title: 'Belum ada catatan',
-                      subtitle: 'Tap tombol + untuk mulai',
-                    )
-                  : s.view == ViewMode.grid
-                      ? GridView.builder(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 6, horizontal: 4),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            mainAxisSpacing: 4,
-                            crossAxisSpacing: 4,
-                            childAspectRatio: 0.85,
+                  IconButton(
+                    icon: const Icon(Icons.settings_outlined),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const SettingsScreen()),
+                    ),
+                  ),
+                ],
+              ),
+        drawer: _selectionMode ? null : _buildDrawer(context, p),
+        body: p.loading
+            ? const Center(child: CircularProgressIndicator())
+            : p.error != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline,
+                              size: 56, color: Colors.red),
+                          const SizedBox(height: 12),
+                          Text(p.error!, textAlign: TextAlign.center),
+                          const SizedBox(height: 16),
+                          FilledButton(
+                            onPressed: () => p.load(),
+                            child: const Text('Coba Lagi'),
                           ),
-                          itemCount: p.notes.length,
-                          itemBuilder: (_, i) {
-                            final n = p.notes[i];
-                            return NoteCard(
-                              note: n,
-                              gridMode: true,
-                              selected: _selectedIds.contains(n.id),
-                              selectionMode: _selectionMode,
-                              onTap: _selectionMode ? () => _toggleSelection(n.id) : () => _openNote(n),
-                              onLongPress: _selectionMode ? () => _toggleSelection(n.id) : () => _showContextMenu(n),
-                            );
-      },
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          itemCount: p.notes.length,
-                          itemBuilder: (_, i) {
-                            final n = p.notes[i];
-                            return NoteCard(
-                              note: n,
-                              selected: _selectedIds.contains(n.id),
-                              selectionMode: _selectionMode,
-                              onTap: _selectionMode ? () => _toggleSelection(n.id) : () => _openNote(n),
-                              onLongPress: _selectionMode ? () => _toggleSelection(n.id) : () => _showContextMenu(n),
-                            );
-      },
-                        ),
-      floatingActionButton: p.filter == NoteFilter.trashed ||
-          p.filter == NoteFilter.archived
-          ? null
-          : NeumoFab(
-              icon: Icons.add,
-              onPressed: () => _openNote(null),
-            ),
-      );
+                        ],
+                      ),
+                    ),
+                  )
+                : p.notes.isEmpty
+                    ? const EmptyState(
+                        icon: Icons.note_outlined,
+                        title: 'Belum ada catatan',
+                        subtitle: 'Tap tombol + untuk mulai',
+                      )
+                    : s.view == ViewMode.grid
+                        ? GridView.builder(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 6, horizontal: 4),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              mainAxisSpacing: 4,
+                              crossAxisSpacing: 4,
+                              childAspectRatio: 0.85,
+                            ),
+                            itemCount: p.notes.length,
+                            itemBuilder: (_, i) {
+                              final n = p.notes[i];
+                              return NoteCard(
+                                note: n,
+                                gridMode: true,
+                                selected: _selectedIds.contains(n.id),
+                                selectionMode: _selectionMode,
+                                onTap: _selectionMode
+                                    ? () => _toggleSelection(n.id)
+                                    : () => _openNote(n),
+                                onLongPress: _selectionMode
+                                    ? () => _toggleSelection(n.id)
+                                    : () => _showContextMenu(n),
+                              );
+                            },
+                          )
+                        : ListView.builder(
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 6),
+                            itemCount: p.notes.length,
+                            itemBuilder: (_, i) {
+                              final n = p.notes[i];
+                              return NoteCard(
+                                note: n,
+                                selected: _selectedIds.contains(n.id),
+                                selectionMode: _selectionMode,
+                                onTap: _selectionMode
+                                    ? () => _toggleSelection(n.id)
+                                    : () => _openNote(n),
+                                onLongPress: _selectionMode
+                                    ? () => _toggleSelection(n.id)
+                                    : () => _showContextMenu(n),
+                              );
+                            },
+                          ),
+        floatingActionButton: p.filter == NoteFilter.trashed ||
+                p.filter == NoteFilter.archived
+            ? null
+            : NeumoFab(
+                icon: Icons.add,
+                onPressed: () => _openNote(null),
+              ),
+      ),
     );
-        }
-
+  }
 
   PreferredSizeWidget _buildSelectionAppBar(BuildContext context, NoteProvider p) {
     return AppBar(
