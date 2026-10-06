@@ -552,7 +552,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           },
                         ),
       floatingActionButton: p.filter == NoteFilter.trashed ||
-              p.filter == NoteFilter.archived
+          p.filter == NoteFilter.archived
           ? null
           : NeumoFab(
               icon: Icons.add,
