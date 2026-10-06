@@ -448,11 +448,11 @@ class _HomeScreenState extends State<HomeScreen> {
         appBar: _selectionMode
           ? _buildSelectionAppBar(context, p)
           : AppBar(
-          title: const SizedBox.shrink(),
-        elevation: 0,
-        backgroundColor: Neumo.bg(context),
-        surfaceTintColor: Colors.transparent,
-        shadowColor: Neumo.shadowDark(context),
+            title: const SizedBox.shrink(),
+            elevation: 0,
+            backgroundColor: Neumo.bg(context),
+            surfaceTintColor: Colors.transparent,
+            shadowColor: Neumo.shadowDark(context),
         actions: [
           IconButton(
             icon: const Icon(Icons.checklist),
