@@ -279,7 +279,7 @@ class SettingsScreen extends StatelessWidget {
           const ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('Catatanku'),
-            subtitle: const Text('Versi 2.3.1'),
+            subtitle: const Text('Versi 2.5.0'),
           ),
           const SizedBox(height: 24),
         ],
@@ -292,44 +292,95 @@ class SettingsScreen extends StatelessWidget {
     final enabled = await lock.isEnabled();
     if (!context.mounted) return;
 
+    final canBio = enabled ? await lock.canUseBiometric() : false;
+    final fpEnabled = enabled ? await lock.isFingerprintEnabled() : false;
+    if (!context.mounted) return;
+
     await showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(enabled ? 'Kunci Aplikasi' : 'Aktifkan Kunci?'),
-        content: Text(enabled
-            ? 'Fitur kunci aktif. Mau ubah atau matikan?'
-            : 'Aktifkan PIN untuk mengunci catatan tertentu.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: Text(enabled ? 'Kunci Aplikasi' : 'Aktifkan Kunci?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(enabled
+                  ? 'Fitur kunci aktif. Mau ubah atau matikan?'
+                  : 'Aktifkan PIN untuk mengunci catatan tertentu.'),
+              if (enabled && canBio) ...[
+                const SizedBox(height: 16),
+                const Divider(),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  secondary: const Icon(Icons.fingerprint),
+                  title: const Text('Fingerprint'),
+                  subtitle: Text(fpEnabled
+                      ? 'Aktif — verifikasi pakai sidik jari'
+                      : 'Nonaktif — pakai PIN saja'),
+                  value: fpEnabled,
+                  onChanged: (v) async {
+                    await lock.setFingerprint(v);
+                    setLocal(() => fpEnabled = v);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(v
+                            ? 'Fingerprint diaktifkan'
+                            : 'Fingerprint dimatikan')),
+                      );
+                    }
+                  },
+                ),
+              ] else if (enabled && !canBio) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(Icons.info_outline,
+                        size: 18, color: Colors.orange.shade300),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Fingerprint tidak tersedia di device ini',
+                        style: TextStyle(fontSize: 12, color: Colors.orange),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
           ),
-          if (enabled)
+          actions: [
             TextButton(
-              onPressed: () async {
-                Navigator.pop(ctx);
-                await _changePin(context);
-              },
-              child: const Text('Ubah PIN'),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Batal'),
             ),
-          if (enabled)
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(ctx);
-                await _disableLock(context);
-              },
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Matikan'),
-            ),
-          if (!enabled)
-            FilledButton(
-              onPressed: () async {
-                Navigator.pop(ctx);
-                await _setupPin(context);
-              },
-              child: const Text('Aktifkan'),
-            ),
-        ],
+            if (enabled)
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await _changePin(context);
+                },
+                child: const Text('Ubah PIN'),
+              ),
+            if (enabled)
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await _disableLock(context);
+                },
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Matikan'),
+              ),
+            if (!enabled)
+              FilledButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await _setupPin(context);
+                },
+                child: const Text('Aktifkan'),
+              ),
+          ],
+        ),
       ),
     );
   }
