@@ -422,7 +422,7 @@ class _HomeScreenState extends State<HomeScreen> {
       NoteFilter.trashed => 'Sampah',
     };
 
-        return PopScope(
+    return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
