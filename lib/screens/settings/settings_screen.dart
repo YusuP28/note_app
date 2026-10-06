@@ -293,7 +293,7 @@ class SettingsScreen extends StatelessWidget {
     if (!context.mounted) return;
 
     final canBio = enabled ? await lock.canUseBiometric() : false;
-    final fpEnabled = enabled ? await lock.isFingerprintEnabled() : false;
+    var fpEnabled = enabled ? await lock.isFingerprintEnabled() : false;
     if (!context.mounted) return;
 
     await showDialog(
