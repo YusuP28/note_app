@@ -75,8 +75,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<bool> _promptUnlock(LockService lock) async {
     // Coba fingerprint dulu kalau enabled
+    // (deklarasi di luar try supaya masih terlihat oleh builder dialog PIN)
+    var fpEnabled = false;
     try {
-      final fpEnabled = await lock.isFingerprintEnabled();
+      fpEnabled = await lock.isFingerprintEnabled();
       if (fpEnabled && await lock.canUseBiometric()) {
         final ok = await lock.authenticateBiometric()
             .timeout(const Duration(seconds: 30), onTimeout: () => false);
