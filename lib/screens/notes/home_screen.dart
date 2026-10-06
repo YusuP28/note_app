@@ -236,13 +236,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _enterSelectionMode(String id) {
-    setState(() {
-      _selectionMode = true;
-      _selectedIds.add(id);
-    });
-  }
-
   void _exitSelectionMode() {
     setState(() {
       _selectionMode = false;
@@ -317,51 +310,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final action = await showNoteContextSheet(context, note);
     if (action == null || !mounted) return;
     await handleNoteAction(context, note, action);
-  }
-
-  Future<void> _confirmDelete(Note note) async {
-    final p = context.read<NoteProvider>();
-    final act = await showModalBottomSheet<String>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(note.isPinned ? Icons.push_pin_outlined : Icons.push_pin),
-              title: Text(note.isPinned ? 'Lepas pin' : 'Sematkan'),
-              onTap: () => Navigator.pop(ctx, 'pin'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.archive_outlined),
-              title: const Text('Arsipkan'),
-              onTap: () => Navigator.pop(ctx, 'archive'),
-            ),
-            ListTile(
-              leading: Icon(note.isLocked ? Icons.lock_open : Icons.lock_outline),
-              title: Text(note.isLocked ? 'Buka Kunci' : 'Kunci Catatan'),
-              onTap: () => Navigator.pop(ctx, 'lock'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline),
-              title: const Text('Pindah ke Sampah'),
-              onTap: () => Navigator.pop(ctx, 'trash'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (act == 'pin') await p.togglePin(note);
-    if (act == 'archive') await p.archive(note, true);
-    if (act == 'trash') await p.trash(note);
-    if (act == 'lock') {
-      if (!mounted) return;
-      await p.toggleLock(note);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(note.isLocked ? 'Catatan dikunci' : 'Kunci dibuka')),
-      );
-    }
   }
 
   void _openDrawerItem(Widget screen) {
@@ -444,7 +392,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       },
       child: Scaffold(
-      appBar: _selectionMode
+        appBar: _selectionMode
           ? _buildSelectionAppBar(context, p)
           : AppBar(
         title: const SizedBox.shrink(),
@@ -561,7 +509,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     );
   }
-
 
   PreferredSizeWidget _buildSelectionAppBar(BuildContext context, NoteProvider p) {
     return AppBar(
