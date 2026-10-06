@@ -64,9 +64,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (!mounted) return;
-    final nav = Navigator.of(context);
-    if (!nav.mounted) return;
-    final result = await nav.push<Note?>(
+    final result = await Navigator.push<Note?>(
+      context,
       MaterialPageRoute(builder: (_) => EditScreen(note: note)),
     );
     if (result != null && mounted) {
@@ -445,14 +444,14 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       },
       child: Scaffold(
-        appBar: _selectionMode
+      appBar: _selectionMode
           ? _buildSelectionAppBar(context, p)
           : AppBar(
-            title: const SizedBox.shrink(),
-            elevation: 0,
-            backgroundColor: Neumo.bg(context),
-            surfaceTintColor: Colors.transparent,
-            shadowColor: Neumo.shadowDark(context),
+        title: const SizedBox.shrink(),
+        elevation: 0,
+        backgroundColor: Neumo.bg(context),
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Neumo.shadowDark(context),
         actions: [
           IconButton(
             icon: const Icon(Icons.checklist),
@@ -559,7 +558,7 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: Icons.add,
               onPressed: () => _openNote(null),
             ),
-    );
+      );
     );
   }
 
