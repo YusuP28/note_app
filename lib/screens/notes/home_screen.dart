@@ -510,7 +510,7 @@ class _HomeScreenState extends State<HomeScreen> {
               : p.notes.isEmpty
                   ? const EmptyState(
                       icon: Icons.note_outlined,
-                      title: 'Belum ada catatan',
+            title: 'Belum ada catatan',
                       subtitle: 'Tap tombol + untuk mulai',
                     )
                   : s.view == ViewMode.grid
@@ -535,7 +535,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               onTap: _selectionMode ? () => _toggleSelection(n.id) : () => _openNote(n),
                               onLongPress: _selectionMode ? () => _toggleSelection(n.id) : () => _showContextMenu(n),
                             );
-                          },
+      },
                         )
                       : ListView.builder(
                           padding: const EdgeInsets.symmetric(vertical: 6),
@@ -549,7 +549,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               onTap: _selectionMode ? () => _toggleSelection(n.id) : () => _openNote(n),
                               onLongPress: _selectionMode ? () => _toggleSelection(n.id) : () => _showContextMenu(n),
                             );
-                          },
+      },
                         ),
       floatingActionButton: p.filter == NoteFilter.trashed ||
           p.filter == NoteFilter.archived
@@ -560,7 +560,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
       );
     );
-  }
+        }
 
 
   PreferredSizeWidget _buildSelectionAppBar(BuildContext context, NoteProvider p) {
