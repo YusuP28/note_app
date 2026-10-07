@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/note.dart';
@@ -435,7 +436,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final now = DateTime.now();
         if (_lastBackPress != null &&
             now.difference(_lastBackPress!) < const Duration(seconds: 2)) {
-          if (mounted) Navigator.of(context).maybePop();
+            SystemNavigator.pop();
           return;
         }
         _lastBackPress = now;
