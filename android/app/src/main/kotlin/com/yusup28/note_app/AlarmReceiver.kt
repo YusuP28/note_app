@@ -19,8 +19,8 @@ import androidx.core.app.NotificationManagerCompat
 class AlarmReceiver : BroadcastReceiver() {
 
     companion object {
-        const val CHANNEL_ID = "note_app_alarm_v5"
-        const val CHANNEL_NAME = "Pengingat Catatan"
+        const val CHANNEL_ID = "note_app_alarm_v6"
+        const val CHANNEL_NAME = "Pengingat Catatan v6"
         const val CHANNEL_DESC = "Notifikasi pengingat dengan alarm"
         const val ACTION_STOP = "com.yusup28.note_app.ACTION_STOP_ALARM"
         const val AUTO_STOP_MS = 60_000L // auto-stop setelah 60 detik
@@ -129,7 +129,6 @@ class AlarmReceiver : BroadcastReceiver() {
             .setOngoing(true)     // tetap sampai user matikan
             .setContentIntent(pendingIntent)
             .setFullScreenIntent(fullScreenIntent, true)
-            .setSilent(true)      // sound manual (bukan via channel)
             .addAction(
                 R.mipmap.ic_launcher,
                 "MATIKAN",
@@ -250,8 +249,17 @@ class AlarmReceiver : BroadcastReceiver() {
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description = CHANNEL_DESC
-            enableVibration(false)
-            setSound(null, null)
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 800, 400, 800, 400, 800)
+            // Sound dari raw resource — sistem yang play
+            val soundUri = android.net.Uri.parse(
+                "android.resource://" + context.packageName + "/" + 
+                context.resources.getIdentifier("sound1", "raw", context.packageName)
+            )
+            setSound(soundUri, AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build())
             enableLights(true)
             setShowBadge(true)
             lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
