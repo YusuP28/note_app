@@ -20,7 +20,7 @@ import androidx.core.app.NotificationManagerCompat
 class AlarmReceiver : BroadcastReceiver() {
 
     companion object {
-        const val CHANNEL_ID = "note_app_alarm_v6"
+        const val CHANNEL_ID = "note_app_alarm_v7"
         const val CHANNEL_NAME = "Pengingat Catatan v6"
         const val CHANNEL_DESC = "Notifikasi pengingat dengan alarm"
         const val ACTION_STOP = "com.yusup28.note_app.ACTION_STOP_ALARM"
@@ -130,6 +130,7 @@ class AlarmReceiver : BroadcastReceiver() {
             .setOngoing(true)     // tetap sampai user matikan
             .setContentIntent(pendingIntent)
             .setFullScreenIntent(fullScreenIntent, true)
+            .setSilent(true)
             .addAction(
                 R.mipmap.ic_launcher,
                 "MATIKAN",
@@ -225,12 +226,6 @@ class AlarmReceiver : BroadcastReceiver() {
                         .build()
                 )
                 setVolume(1.0f, 1.0f)
-                // Paksa volume stream alarm ke max (Android kadang reset)
-                try {
-                    val am2 = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-                    val maxVol = am2.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-                    am2.setStreamVolume(AudioManager.STREAM_ALARM, maxVol, 0)
-                } catch (_: Exception) {}
                 isLooping = true // LOOP!
                 start()
                 Log.d(TAG, "MediaPlayer loop started (key=$soundKey)")
@@ -282,17 +277,10 @@ class AlarmReceiver : BroadcastReceiver() {
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description = CHANNEL_DESC
+            // NO sound di channel — MediaPlayer manual yang play
             enableVibration(true)
             vibrationPattern = longArrayOf(0, 800, 400, 800, 400, 800)
-            // Sound dari raw resource — sistem yang play
-            val soundUri = android.net.Uri.parse(
-                "android.resource://" + context.packageName + "/" + 
-                context.resources.getIdentifier("sound1", "raw", context.packageName)
-            )
-            setSound(soundUri, AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ALARM)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build())
+            setSound(null, null)
             enableLights(true)
             setShowBadge(true)
             lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
