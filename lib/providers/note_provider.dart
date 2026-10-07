@@ -200,6 +200,17 @@ class NoteProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  String _buildNotifBody(Note note) {
+    final plain = note.plainText.trim();
+    if (plain.isNotEmpty) {
+      return plain.length > 80 ? '${plain.substring(0, 80)}...' : plain;
+    }
+    final content = note.content.trim();
+    if (content.isEmpty) return 'Waktunya buka catatan ini';
+    return content.length > 80 ? '${content.substring(0, 80)}...' : content;
+  }
+
+
   Future<void> setReminder(Note note, DateTime? when) async {
     debugPrint('setReminder: note=${note.id} when=$when');
     // Set field dulu, baru update DB + notify
@@ -214,11 +225,7 @@ class NoteProvider extends ChangeNotifier {
       await _alarm.schedule(
         noteId: note.id,
         title: note.title.isEmpty ? 'Pengingat Catatan' : note.title,
-        body: note.content.isEmpty
-            ? 'Waktunya buka catatan ini'
-            : (note.content.length > 80
-                ? '${note.content.substring(0, 80)}...'
-                : note.content),
+        body: _buildNotifBody(note),
         when: when,
       );
       debugPrint('Reminder set for ${note.id} at $when');

@@ -12,6 +12,7 @@ import android.media.RingtoneManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.media.AudioManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -178,6 +179,32 @@ class AlarmReceiver : BroadcastReceiver() {
     // ============ SOUND (loop) ============
     private fun playSoundLooping(context: Context) {
         try {
+            // Request audio focus (WAJIB — tanpa ini MediaPlayer bisa diam)
+            try {
+                val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val req = android.media.AudioFocusRequest.Builder(
+                        AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
+                    ).setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ALARM)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build()
+                    ).build()
+                    am.requestAudioFocus(req)
+                } else {
+                    @Suppress("DEPRECATION")
+                    am.requestAudioFocus(
+                        null,
+                        AudioManager.STREAM_ALARM,
+                        AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
+                    )
+                }
+                Log.d(TAG, "AudioFocus requested")
+            } catch (e: Exception) {
+                Log.e(TAG, "AudioFocus error: ${e.message}")
+            }
+
             val soundKey = readSoundKey(context)
             val media = if (soundKey in RAW_SOUNDS) {
                 val resId = context.resources.getIdentifier(soundKey, "raw", context.packageName)
@@ -198,6 +225,12 @@ class AlarmReceiver : BroadcastReceiver() {
                         .build()
                 )
                 setVolume(1.0f, 1.0f)
+                // Paksa volume stream alarm ke max (Android kadang reset)
+                try {
+                    val am2 = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                    val maxVol = am2.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+                    am2.setStreamVolume(AudioManager.STREAM_ALARM, maxVol, 0)
+                } catch (_: Exception) {}
                 isLooping = true // LOOP!
                 start()
                 Log.d(TAG, "MediaPlayer loop started (key=$soundKey)")
