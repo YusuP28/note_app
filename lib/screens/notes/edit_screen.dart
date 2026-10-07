@@ -282,12 +282,12 @@ class _EditScreenState extends State<EditScreen> {
     final dividerColor = textColor.withOpacity(0.25);
 
     return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) return;
-        await _save(silent: true);
-        if (!mounted) return;
-        Navigator.of(context).maybePop();
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+        // Save background — non-blocking
+        _save(silent: true).catchError((_) => false);
+        }
       },
       child: Scaffold(
         backgroundColor: editorBg,
