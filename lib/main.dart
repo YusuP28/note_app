@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/note_provider.dart';
@@ -20,6 +21,10 @@ import 'utils/locale_init.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Request POST_NOTIFICATIONS (Android 13+) + SCHEDULE_EXACT_ALARM
+  await _requestPermissions();
+
   await initLocale();
   await MigrationService().migrateIfNeeded();
   await BackupService().autoBackup();
@@ -39,6 +44,22 @@ Future<void> main() async {
   });
 
   runApp(NoteApp(settings: settings, theme: theme));
+}
+
+/// Request permission runtime: notifikasi (Android 13+) + alarm exact
+Future<void> _requestPermissions() async {
+  try {
+    // POST_NOTIFICATIONS (Android 13+)
+    if (!await Permission.notification.isGranted) {
+      await Permission.notification.request();
+    }
+    // SCHEDULE_EXACT_ALARM (Android 12+) — harus lewat intent khusus
+    if (!await Permission.scheduleExactAlarm.isGranted) {
+      await Permission.scheduleExactAlarm.request();
+    }
+  } catch (e) {
+    debugPrint('permission request error: $e');
+  }
 }
 
 class NoteApp extends StatelessWidget {
