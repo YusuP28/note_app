@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 import '../../models/note.dart';
 import '../../providers/note_provider.dart';
@@ -496,9 +497,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
         drawer: _selectionMode ? null : _buildDrawer(context, p),
-        body: p.loading
-            ? const Center(child: CircularProgressIndicator())
-            : p.error != null
+        body: Skeletonizer(
+          enabled: p.loading,
+          child: p.error != null
                 ? Center(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
@@ -571,6 +572,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               );
                             },
                           ),
+        ),
         floatingActionButton: p.filter == NoteFilter.trashed ||
                 p.filter == NoteFilter.archived
             ? null
