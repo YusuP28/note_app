@@ -3,6 +3,37 @@
 Format: [Keep a Changelog](https://keepachangelog.com/)
 Versioning: [Semantic Versioning](https://semver.org/)
 
+## [2.5.0] - 2026-10-08
+
+### Ditambahkan
+- **Toggle Fingerprint** di Settings (on/off terpisah dari PIN)
+- **Request runtime permission** POST_NOTIFICATIONS + SCHEDULE_EXACT_ALARM
+- **Alarm multi-channel** — v7 (single sound via MediaPlayer)
+- **Audio focus** request untuk alarm
+- **Plain text body** notif (bukan Delta JSON)
+
+### Diperbaiki
+- **App freeze** saat back dari editor terkunci
+  → PopScope edit: canPop true + save non-blocking
+- **Back HP** dari home tidak exit app
+  → PopScope home: tekan sekali lagi untuk keluar
+- **Biometric** tidak trigger
+  → MainActivity: FlutterFragmentActivity + USE_BIOMETRIC
+- **Alarm** double sound (v1 + v2 bunyi bareng)
+  → channel v7 + MediaPlayer manual single source
+- **Volume** alarm dipaksa max
+  → ikut volume alarm hardware
+- **Body notif** tampil JSON Delta
+  → pakai plainText
+- **Alarm suara** tidak keluar saat notif
+  → channel sound + AudioFocus
+
+### Diubah
+- Alarm channel ID: v5 → v6 → v7
+- Permission handler ^11.3.1 ditambahkan
+
+---
+
 ## [2.4.0] - 2026-10-05
 
 ### Ditambahkan
