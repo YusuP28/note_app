@@ -279,7 +279,7 @@ class SettingsScreen extends StatelessWidget {
           const ListTile(
             leading: Icon(Icons.info_outline),
             title: Text('Catatanku'),
-            subtitle: const Text('Versi 2.5.0'),
+            subtitle: const Text('Versi 2.5.1'),
           ),
           const SizedBox(height: 24),
         ],

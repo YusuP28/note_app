@@ -3,7 +3,21 @@
 Format: [Keep a Changelog](https://keepachangelog.com/)
 Versioning: [Semantic Versioning](https://semver.org/)
 
+## [2.5.1] - 2026-10-12
+
+### Ditambahkan
+- **Long-press menu** di Sampah — Pulihkan / Buka / Hapus Permanen
+- **Hint banner** di Sampah (muncul sekali, disimpan di SharedPreferences)
+- **Snackbar** feedback "Catatan dipulihkan" setelah restore
+- **Tooltip** di icon (Kosongkan Sampah)
+- **Dialog button merah** untuk aksi berbahaya (Hapus, Kosongkan)
+
+### Diperbaiki
+- UX Sampah lebih discoverable (tidak hanya swipe)
+- User baru dapat petunjuk visual cara restore
+
 ## [2.5.0] - 2026-10-08
+
 
 ### Ditambahkan
 - **Toggle Fingerprint** di Settings (on/off terpisah dari PIN)
