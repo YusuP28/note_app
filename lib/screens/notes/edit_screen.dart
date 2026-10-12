@@ -270,6 +270,83 @@ class _EditScreenState extends State<EditScreen> {
     );
   }
 
+  // ═══════════════════════════════════════════════════════════
+  //  NAVIGASI KURSOR — Arrow Keys
+  // ═══════════════════════════════════════════════════════════
+
+  /// Geser kursor 1 karakter (kiri/kanan)
+  void _moveCursor(int delta) {
+    final sel = _contentCtrl.selection;
+    final doc = _contentCtrl.document;
+    final maxOffset = doc.length - 1;
+    final newOffset = (sel.baseOffset + delta).clamp(0, maxOffset);
+    if (newOffset != sel.baseOffset) {
+      _contentCtrl.updateSelection(
+        TextSelection.collapsed(offset: newOffset),
+        quill.ChangeSource.local,
+      );
+    }
+  }
+
+  /// Geser kursor 1 baris (atas/bawah)
+  void _moveLine(int direction) {
+    final sel = _contentCtrl.selection;
+    final doc = _contentCtrl.document;
+    final text = doc.toPlainText();
+    if (text.isEmpty) return;
+
+    final currentOffset = sel.baseOffset;
+    final lineStart = text.lastIndexOf('\n', currentOffset - 1) + 1;
+
+    int newOffset;
+    if (direction < 0) {
+      // Ke atas
+      if (lineStart == 0) return;
+      final prevLineEnd = lineStart - 1;
+      final prevLineStart = text.lastIndexOf('\n', prevLineEnd - 1) + 1;
+      final col = currentOffset - lineStart;
+      newOffset = (prevLineStart + col).clamp(prevLineStart, prevLineEnd);
+    } else {
+      // Ke bawah
+      final lineEnd = text.indexOf('\n', currentOffset);
+      if (lineEnd == -1) return;
+      final nextLineStart = lineEnd + 1;
+      if (nextLineStart >= text.length) return;
+      final nextLineEnd = text.indexOf('\n', nextLineStart);
+      final col = currentOffset - lineStart;
+      final limit = nextLineEnd == -1 ? text.length : nextLineEnd;
+      newOffset = (nextLineStart + col).clamp(nextLineStart, limit);
+    }
+
+    _contentCtrl.updateSelection(
+      TextSelection.collapsed(offset: newOffset),
+      quill.ChangeSource.local,
+    );
+  }
+
+  /// Pindah ke awal baris
+  void _moveHome() {
+    final sel = _contentCtrl.selection;
+    final text = _contentCtrl.document.toPlainText();
+    final lineStart = text.lastIndexOf('\n', sel.baseOffset - 1) + 1;
+    _contentCtrl.updateSelection(
+      TextSelection.collapsed(offset: lineStart),
+      quill.ChangeSource.local,
+    );
+  }
+
+  /// Pindah ke akhir baris
+  void _moveEnd() {
+    final sel = _contentCtrl.selection;
+    final text = _contentCtrl.document.toPlainText();
+    final lineEnd = text.indexOf('\n', sel.baseOffset);
+    final target = lineEnd == -1 ? text.length : lineEnd;
+    _contentCtrl.updateSelection(
+      TextSelection.collapsed(offset: target),
+      quill.ChangeSource.local,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final notebooks = context.watch<NotebookProvider>();
@@ -510,6 +587,66 @@ class _EditScreenState extends State<EditScreen> {
                   ),
                 ),
                 Divider(color: dividerColor),
+                // ═══ Arrow Keys Navigation Bar ═══
+                Container(
+                  color: editorBg,
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, size: 20),
+                        tooltip: 'Kiri',
+                        padding: const EdgeInsets.all(6),
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        onPressed: () => _moveCursor(-1),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_upward, size: 20),
+                        tooltip: 'Atas',
+                        padding: const EdgeInsets.all(6),
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        onPressed: () => _moveLine(-1),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_downward, size: 20),
+                        tooltip: 'Bawah',
+                        padding: const EdgeInsets.all(6),
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        onPressed: () => _moveLine(1),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_forward, size: 20),
+                        tooltip: 'Kanan',
+                        padding: const EdgeInsets.all(6),
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        onPressed: () => _moveCursor(1),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 1,
+                        height: 20,
+                        color: dividerColor,
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.vertical_align_top, size: 20),
+                        tooltip: 'Awal baris',
+                        padding: const EdgeInsets.all(6),
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        onPressed: _moveHome,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.vertical_align_bottom, size: 20),
+                        tooltip: 'Akhir baris',
+                        padding: const EdgeInsets.all(6),
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        onPressed: _moveEnd,
+                      ),
+                    ],
+                  ),
+                ),
+                Divider(height: 1, color: dividerColor),
                 quill.QuillSimpleToolbar(
                   configurations: quill.QuillSimpleToolbarConfigurations(
                     controller: _contentCtrl,
