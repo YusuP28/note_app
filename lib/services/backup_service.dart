@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:archive/archive_io.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'attachment_service.dart';
@@ -15,6 +16,7 @@ class BackupService {
   static const int _maxAutoBackups = 7;
   static const String _attachmentsFolder = 'attachments';
   static const String _dataFileName = 'data.json';
+  static const String _publicBackupPath = '/sdcard/Download/note_app';
   static const Set<String> _mediaEmbedKeys = {
     'image',
     'video',
@@ -23,7 +25,7 @@ class BackupService {
   };
 
   Future<String> exportAll() async {
-    final dir = await getApplicationDocumentsDirectory();
+    final dir = await _resolveBaseDir();
     final file = File(
         '${dir.path}/note_app_backup_${DateTime.now().millisecondsSinceEpoch}.zip');
     return _exportTo(file.path);
@@ -32,7 +34,7 @@ class BackupService {
   /// Auto-backup harian. Simpan di folder khusus, rotasi max 7 file.
   Future<void> autoBackup() async {
     try {
-      final dir = await getApplicationDocumentsDirectory();
+      final dir = await _resolveBaseDir();
       final backupDir = Directory('${dir.path}/backups');
       if (!await backupDir.exists()) await backupDir.create(recursive: true);
 
@@ -46,6 +48,39 @@ class BackupService {
       await _exportTo(target.path);
       await _rotate(backupDir);
     } catch (_) {}
+  }
+
+  /// Folder publik /sdcard/Download/note_app/ (auto-create).
+  /// Kalau izin ditolak / tidak tersedia, fallback ke folder dokumen aplikasi.
+  Future<Directory> _resolveBaseDir() async {
+    final publicDir = Directory(_publicBackupPath);
+    if (await _ensureWritable(publicDir)) return publicDir;
+
+    if (Platform.isAndroid) {
+      try {
+        final status = await Permission.manageExternalStorage.status;
+        if (!status.isGranted) {
+          await Permission.manageExternalStorage.request();
+        }
+      } catch (_) {}
+      if (await _ensureWritable(publicDir)) return publicDir;
+    }
+
+    final documents = await getApplicationDocumentsDirectory();
+    await documents.create(recursive: true);
+    return documents;
+  }
+
+  Future<bool> _ensureWritable(Directory dir) async {
+    try {
+      if (!await dir.exists()) await dir.create(recursive: true);
+      final probe = File(p.join(dir.path, '.note_app_write_test'));
+      await probe.writeAsString('ok', flush: true);
+      await probe.delete();
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<String> _exportTo(String targetPath) async {

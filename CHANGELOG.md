@@ -10,6 +10,9 @@ Versioning: [Semantic Versioning](https://semver.org/)
 - **Backup v3 (ZIP)** — `data.json` + folder `attachments/`, restore dengan urutan FK yang benar
 - **Versi aplikasi dinamis** via `package_info_plus`
 
+### Diubah
+- **Lokasi backup ZIP** dipindah ke folder publik `/sdcard/Download/note_app/` (folder dibuat otomatis; fallback ke folder aplikasi jika izin ditolak)
+
 ### Diperbaiki
 - Urutan restore backup: notebook → tag → catatan → relasi tag → lampiran (sebelumnya catatan di-insert sebelum notebook)
 - Auto-backup, backup lokal, dan Google Drive sekarang menyertakan lampiran media
