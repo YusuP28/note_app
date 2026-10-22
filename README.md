@@ -58,7 +58,7 @@ Aplikasi catatan modern untuk Android. Offline-first, tanpa internet.
 ### Data
 - SQLite lokal (offline-first)
 - Auto-backup harian (rotasi 7 file)
-- Export / Import backup JSON (Gabung atau Ganti)
+- Export / Import backup ZIP — catatan + lampiran (Gabung atau Ganti)
 - Export per catatan (TXT / Markdown)
 - Migrasi otomatis JSON v1 -> SQLite v2
 

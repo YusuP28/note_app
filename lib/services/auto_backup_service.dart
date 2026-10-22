@@ -33,12 +33,12 @@ class AutoBackupService {
     try {
       // Export
       final path = await BackupService().exportAll();
-      final json = await BackupService().readFile(path);
+      final bytes = await BackupService().readBytes(path);
 
       // Upload
       final fileName =
-          'note_app_backup_${DateTime.now().millisecondsSinceEpoch}.json';
-      await drive.uploadBackup(fileName: fileName, jsonContent: json);
+          'note_app_backup_${DateTime.now().millisecondsSinceEpoch}.zip';
+      await drive.uploadBackup(fileName: fileName, bytes: bytes);
       await drive.cleanupOldBackups(keepLast: 5);
 
       // Update timestamp

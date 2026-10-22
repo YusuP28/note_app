@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../providers/theme_provider.dart';
 import '../../providers/settings_provider.dart';
@@ -53,7 +54,8 @@ class SettingsScreen extends StatelessWidget {
                   : 'Custom: ${settings.notificationSound.split("/").last}',
             ),
             trailing: DropdownButton<String>(
-              value: ['sound1', 'sound2', 'sound3'].contains(settings.notificationSound)
+              value: ['sound1', 'sound2', 'sound3']
+                      .contains(settings.notificationSound)
                   ? settings.notificationSound
                   : 'custom',
               items: const [
@@ -68,7 +70,8 @@ class SettingsScreen extends StatelessWidget {
                     type: FileType.audio,
                   );
                   if (result != null && result.files.single.path != null) {
-                    await settings.setNotificationSound(result.files.single.path!);
+                    await settings
+                        .setNotificationSound(result.files.single.path!);
                   }
                 } else if (val != null) {
                   await settings.setNotificationSound(val);
@@ -97,7 +100,8 @@ class SettingsScreen extends StatelessWidget {
               final ok = await AlarmService().openChannelSettings();
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(ok ? 'Buka pengaturan channel' : 'Gagal')),
+                  SnackBar(
+                      content: Text(ok ? 'Buka pengaturan channel' : 'Gagal')),
                 );
               }
             },
@@ -171,7 +175,8 @@ class SettingsScreen extends StatelessWidget {
           SwitchListTile(
             secondary: const Icon(Icons.high_quality_outlined),
             title: const Text('Ukuran Foto Asli'),
-            subtitle: const Text('Foto tidak dikompresi (butuh lebih banyak ruang)'),
+            subtitle:
+                const Text('Foto tidak dikompresi (butuh lebih banyak ruang)'),
             value: settings.useOriginalQuality,
             onChanged: (val) async {
               await settings.setUseOriginalQuality(val);
@@ -185,8 +190,8 @@ class SettingsScreen extends StatelessWidget {
           _section(context, 'Backup Lokal'),
           ListTile(
             leading: const Icon(Icons.save_outlined),
-            title: const Text('Backup Data (JSON)'),
-            subtitle: const Text('Simpan semua data ke file lokal'),
+            title: const Text('Backup Data (ZIP)'),
+            subtitle: const Text('Simpan semua catatan + lampiran ke file ZIP'),
             onTap: () async {
               try {
                 final path = await BackupService().exportAll();
@@ -207,11 +212,11 @@ class SettingsScreen extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.restore_outlined),
             title: const Text('Restore dari File'),
-            subtitle: const Text('Import backup JSON (replace)'),
+            subtitle: const Text('Import backup ZIP/JSON (replace)'),
             onTap: () async {
               final result = await FilePicker.platform.pickFiles(
                 type: FileType.custom,
-                allowedExtensions: ['json'],
+                allowedExtensions: ['zip', 'json'],
               );
               if (result == null || result.files.single.path == null) return;
               try {
@@ -241,7 +246,8 @@ class SettingsScreen extends StatelessWidget {
                 context: context,
                 builder: (ctx) => AlertDialog(
                   title: const Text('Bersihkan Sampah?'),
-                  content: const Text('Hapus permanen catatan di sampah > 30 hari.'),
+                  content:
+                      const Text('Hapus permanen catatan di sampah > 30 hari.'),
                   actions: [
                     TextButton(
                         onPressed: () => Navigator.pop(ctx, false),
@@ -276,10 +282,21 @@ class SettingsScreen extends StatelessWidget {
 
           // ============ TENTANG ============
           _section(context, 'Tentang'),
-          const ListTile(
-            leading: Icon(Icons.info_outline),
-            title: Text('Catatanku'),
-            subtitle: const Text('Versi 2.5.1'),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('Catatanku'),
+            subtitle: FutureBuilder<PackageInfo>(
+              future: PackageInfo.fromPlatform(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError || !snapshot.hasData) {
+                  return const Text('Versi tidak diketahui');
+                }
+                final info = snapshot.data!;
+                final build =
+                    info.buildNumber.isEmpty ? '' : '+${info.buildNumber}';
+                return Text('Versi ${info.version}$build');
+              },
+            ),
           ),
           const SizedBox(height: 24),
         ],
@@ -324,9 +341,10 @@ class SettingsScreen extends StatelessWidget {
                     setLocal(() => fpEnabled = v);
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(v
-                            ? 'Fingerprint diaktifkan'
-                            : 'Fingerprint dimatikan')),
+                        SnackBar(
+                            content: Text(v
+                                ? 'Fingerprint diaktifkan'
+                                : 'Fingerprint dimatikan')),
                       );
                     }
                   },

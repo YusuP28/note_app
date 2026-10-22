@@ -1,11 +1,7 @@
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
-import 'dart:io' show HttpClient, SecurityContext;
-
 
 class GoogleDriveService {
   static final GoogleDriveService _i = GoogleDriveService._();
@@ -73,10 +69,10 @@ class GoogleDriveService {
     return drive.DriveApi(client);
   }
 
-  /// Upload file JSON ke Drive (appDataFolder)
+  /// Upload file backup ZIP ke Drive (appDataFolder)
   Future<String?> uploadBackup({
     required String fileName,
-    required String jsonContent,
+    required Uint8List bytes,
   }) async {
     try {
       final api = await _getDriveApi();
@@ -88,11 +84,10 @@ class GoogleDriveService {
         $fields: 'files(id, name)',
       );
 
-      final bytes = utf8.encode(jsonContent);
       final media = drive.Media(
         Stream.value(bytes),
         bytes.length,
-        contentType: 'application/json',
+        contentType: 'application/zip',
       );
 
       final metadata = drive.File()
@@ -102,7 +97,8 @@ class GoogleDriveService {
       if (list.files != null && list.files!.isNotEmpty) {
         // Update existing
         final id = list.files!.first.id!;
-        final updated = await api.files.update(metadata, id, uploadMedia: media);
+        final updated =
+            await api.files.update(metadata, id, uploadMedia: media);
         debugPrint('Backup updated: ${updated.id}');
         return updated.id;
       } else {
@@ -117,8 +113,8 @@ class GoogleDriveService {
     }
   }
 
-  /// Download file JSON dari Drive
-  Future<String?> downloadBackup({required String fileName}) async {
+  /// Download file backup dari Drive
+  Future<Uint8List?> downloadBackup({required String fileName}) async {
     try {
       final api = await _getDriveApi();
 
@@ -143,9 +139,9 @@ class GoogleDriveService {
       await for (final chunk in media.stream) {
         chunks.addAll(chunk);
       }
-      final content = utf8.decode(chunks);
-      debugPrint('Download OK: ${content.length} char');
-      return content;
+      final bytes = Uint8List.fromList(chunks);
+      debugPrint('Download OK: ${bytes.length} bytes');
+      return bytes;
     } catch (e) {
       debugPrint('downloadBackup error: $e');
       rethrow;

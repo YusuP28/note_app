@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
@@ -28,7 +27,10 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
   }
 
   Future<void> _signIn() async {
-    setState(() { _busy = true; _status = 'Login...'; });
+    setState(() {
+      _busy = true;
+      _status = 'Login...';
+    });
     try {
       final acc = await _drive.signIn();
       if (acc == null) {
@@ -39,7 +41,11 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
     } catch (e) {
       _show('Login gagal: $e');
     } finally {
-      if (mounted) setState(() { _busy = false; _status = ''; });
+      if (mounted)
+        setState(() {
+          _busy = false;
+          _status = '';
+        });
     }
   }
 
@@ -50,30 +56,41 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
   }
 
   Future<void> _backup() async {
-    setState(() { _busy = true; _status = 'Menyiapkan backup...'; });
+    setState(() {
+      _busy = true;
+      _status = 'Menyiapkan backup...';
+    });
     try {
-      // Export semua data
+      // Export semua data + lampiran
       final path = await BackupService().exportAll();
-      final json = await _readFile(path);
+      final bytes = await BackupService().readBytes(path);
 
       setState(() => _status = 'Upload ke Drive...');
-      final fileName = 'note_app_backup_${DateTime.now().millisecondsSinceEpoch}.json';
+      final fileName =
+          'note_app_backup_${DateTime.now().millisecondsSinceEpoch}.zip';
       final id = await _drive.uploadBackup(
         fileName: fileName,
-        jsonContent: json,
+        bytes: bytes,
       );
 
       _show('Backup OK: ${id?.substring(0, 8)}...');
     } catch (e) {
       _show('Backup gagal: $e');
     } finally {
-      if (mounted) setState(() { _busy = false; _status = ''; });
+      if (mounted)
+        setState(() {
+          _busy = false;
+          _status = '';
+        });
     }
   }
 
   Future<void> _restore() async {
     // List semua backup
-    setState(() { _busy = true; _status = 'Ambil daftar backup...'; });
+    setState(() {
+      _busy = true;
+      _status = 'Ambil daftar backup...';
+    });
     try {
       final list = await _drive.listBackups();
       if (list.isEmpty) {
@@ -91,7 +108,8 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
               const Padding(
                 padding: EdgeInsets.all(16),
                 child: Text('Pilih Backup',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ),
               const Divider(height: 1),
               ...list.map((item) => ListTile(
@@ -109,17 +127,20 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
       if (picked == null) return;
 
       setState(() => _status = 'Download dari Drive...');
-      final content = await _drive.downloadBackup(
+      final bytes = await _drive.downloadBackup(
         fileName: picked['name'] as String,
       );
-      if (content == null) {
+      if (bytes == null) {
         _show('File tidak ditemukan');
         return;
       }
 
       // Tulis ke temp file
       setState(() => _status = 'Restore data...');
-      final tmpPath = await BackupService().writeTempJson(content);
+      final tmpPath = await BackupService().writeTempBackup(
+        bytes,
+        fileName: picked['name'] as String?,
+      );
       final count = await BackupService().importFromFile(tmpPath, merge: false);
 
       if (mounted) {
@@ -129,12 +150,12 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
     } catch (e) {
       _show('Restore gagal: $e');
     } finally {
-      if (mounted) setState(() { _busy = false; _status = ''; });
+      if (mounted)
+        setState(() {
+          _busy = false;
+          _status = '';
+        });
     }
-  }
-
-  Future<String> _readFile(String path) async {
-    return await File(path).readAsString();
   }
 
   void _show(String msg) {
@@ -167,13 +188,16 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
                     ? NetworkImage(user!.photoUrl!)
                     : null,
                 child: user == null
-                    ? Icon(Icons.person_outline, color: scheme.onPrimaryContainer)
+                    ? Icon(Icons.person_outline,
+                        color: scheme.onPrimaryContainer)
                     : null,
               ),
               title: Text(user?.displayName ?? 'Belum login'),
               subtitle: Text(user?.email ?? 'Tap untuk login Google'),
               trailing: user == null
-                  ? FilledButton(onPressed: _busy ? null : _signIn, child: const Text('Login'))
+                  ? FilledButton(
+                      onPressed: _busy ? null : _signIn,
+                      child: const Text('Login'))
                   : IconButton(
                       icon: const Icon(Icons.logout),
                       onPressed: _busy ? null : _signOut,
@@ -188,7 +212,8 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
               child: Row(
                 children: [
                   const SizedBox(
-                    width: 16, height: 16,
+                    width: 16,
+                    height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
                   const SizedBox(width: 12),
@@ -217,7 +242,7 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
             child: ListTile(
               leading: const Icon(Icons.cloud_upload_outlined),
               title: const Text('Backup ke Drive'),
-              subtitle: const Text('Upload semua catatan (notes + notebooks + tags)'),
+              subtitle: const Text('Upload semua catatan + lampiran (ZIP)'),
               enabled: user != null && !_busy,
               onTap: (user == null || _busy) ? null : _backup,
             ),
@@ -228,7 +253,7 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
             child: ListTile(
               leading: const Icon(Icons.cloud_download_outlined),
               title: const Text('Restore dari Drive'),
-              subtitle: const Text('Download backup + replace semua data'),
+              subtitle: const Text('Download backup ZIP + replace semua data'),
               enabled: user != null && !_busy,
               onTap: (user == null || _busy) ? null : _restore,
             ),

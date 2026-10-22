@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../models/note.dart';
 import '../services/database_service.dart';
+import '../services/attachment_service.dart';
 import '../services/alarm_service.dart';
 import 'settings_provider.dart';
 
@@ -124,8 +125,10 @@ class NoteProvider extends ChangeNotifier {
           if (!n.isTrashed) return false;
           break;
       }
-      if (_notebookIdFilter != null && n.notebookId != _notebookIdFilter) return false;
-      if (_tagIdFilter != null && !n.tagIds.contains(_tagIdFilter)) return false;
+      if (_notebookIdFilter != null && n.notebookId != _notebookIdFilter)
+        return false;
+      if (_tagIdFilter != null && !n.tagIds.contains(_tagIdFilter))
+        return false;
       return true;
     }).toList();
 
@@ -162,7 +165,8 @@ class NoteProvider extends ChangeNotifier {
     }
   }
 
-  Future<Note> addNote({String title = '', String content = '', String? notebookId}) async {
+  Future<Note> addNote(
+      {String title = '', String content = '', String? notebookId}) async {
     final now = DateTime.now();
     final note = Note(
       id: _uuid.v4(),
@@ -183,7 +187,8 @@ class NoteProvider extends ChangeNotifier {
   Future<void> updateNote(Note note) async {
     note.updatedAt = DateTime.now();
     final db = await _db.database;
-    await db.update('notes', note.toMap(), where: 'id = ?', whereArgs: [note.id]);
+    await db
+        .update('notes', note.toMap(), where: 'id = ?', whereArgs: [note.id]);
     await db.delete('note_tags', where: 'note_id = ?', whereArgs: [note.id]);
     for (final tagId in note.tagIds) {
       try {
@@ -209,7 +214,6 @@ class NoteProvider extends ChangeNotifier {
     if (content.isEmpty) return 'Waktunya buka catatan ini';
     return content.length > 80 ? '${content.substring(0, 80)}...' : content;
   }
-
 
   Future<void> setReminder(Note note, DateTime? when) async {
     debugPrint('setReminder: note=${note.id} when=$when');
@@ -266,6 +270,7 @@ class NoteProvider extends ChangeNotifier {
     await _alarm.cancel(id);
     final db = await _db.database;
     await db.delete('notes', where: 'id = ?', whereArgs: [id]);
+    await AttachmentService().cleanupOrphans();
     _notes.removeWhere((n) => n.id == id);
     _applyFilter();
     notifyListeners();
@@ -278,17 +283,20 @@ class NoteProvider extends ChangeNotifier {
       await _alarm.cancel(id);
       await db.delete('notes', where: 'id = ?', whereArgs: [id]);
     }
+    await AttachmentService().cleanupOrphans();
     _notes.removeWhere((n) => n.isTrashed);
     _applyFilter();
     notifyListeners();
   }
 
   Future<void> purgeOldTrash({int days = 30}) async {
-    final cutoff = DateTime.now().subtract(Duration(days: days)).millisecondsSinceEpoch;
+    final cutoff =
+        DateTime.now().subtract(Duration(days: days)).millisecondsSinceEpoch;
     final db = await _db.database;
     await db.delete('notes',
         where: 'is_trashed = 1 AND trashed_at IS NOT NULL AND trashed_at < ?',
         whereArgs: [cutoff]);
+    await AttachmentService().cleanupOrphans();
     await load();
   }
 }

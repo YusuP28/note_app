@@ -3,6 +3,17 @@
 Format: [Keep a Changelog](https://keepachangelog.com/)
 Versioning: [Semantic Versioning](https://semver.org/)
 
+## [Unreleased]
+
+### Ditambahkan
+- **Fondasi lampiran media** — tabel `note_attachments`, model `Attachment`, dan `AttachmentService` (simpan/hapus/bersihkan orphan)
+- **Backup v3 (ZIP)** — `data.json` + folder `attachments/`, restore dengan urutan FK yang benar
+- **Versi aplikasi dinamis** via `package_info_plus`
+
+### Diperbaiki
+- Urutan restore backup: notebook → tag → catatan → relasi tag → lampiran (sebelumnya catatan di-insert sebelum notebook)
+- Auto-backup, backup lokal, dan Google Drive sekarang menyertakan lampiran media
+
 ## [2.5.1] - 2026-10-12
 
 ### Ditambahkan

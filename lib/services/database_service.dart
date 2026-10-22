@@ -2,13 +2,15 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../models/attachment.dart';
+
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
   factory DatabaseService() => _instance;
   DatabaseService._internal();
 
   static Database? _db;
-  static const int _version = 1;
+  static const int _version = 2;
   static const String _dbName = 'note_app_v7.db';
 
   Future<Database> get database async {
@@ -46,7 +48,8 @@ class DatabaseService {
         FOREIGN KEY (parent_id) REFERENCES notebooks(id) ON DELETE CASCADE
       )
     ''');
-    await db.execute('CREATE INDEX idx_notebooks_parent ON notebooks(parent_id)');
+    await db
+        .execute('CREATE INDEX idx_notebooks_parent ON notebooks(parent_id)');
 
     await db.execute('''
       CREATE TABLE tags (
@@ -84,7 +87,8 @@ class DatabaseService {
     await db.execute('CREATE INDEX idx_notes_notebook ON notes(notebook_id)');
     await db.execute(
         'CREATE INDEX idx_notes_flags ON notes(is_pinned, is_archived, is_trashed)');
-    await db.execute('CREATE INDEX idx_notes_updated ON notes(updated_at DESC)');
+    await db
+        .execute('CREATE INDEX idx_notes_updated ON notes(updated_at DESC)');
     await db.execute('CREATE INDEX idx_notes_title ON notes(title)');
     await db.execute('CREATE INDEX idx_notes_reminder ON notes(reminder_at)');
 
@@ -99,10 +103,34 @@ class DatabaseService {
     ''');
     await db.execute('CREATE INDEX idx_note_tags_tag ON note_tags(tag_id)');
 
+    await _createAttachmentsSchema(db);
+
     debugPrint('DB created OK');
   }
 
-  Future<void> _onUpgrade(Database db, int oldV, int newV) async {}
+  Future<void> _createAttachmentsSchema(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS note_attachments (
+        id TEXT PRIMARY KEY,
+        note_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        path TEXT NOT NULL,
+        mime_type TEXT,
+        size_bytes INTEGER NOT NULL DEFAULT 0,
+        duration_ms INTEGER,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+      )
+    ''');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_note_attachments_note ON note_attachments(note_id)');
+  }
+
+  Future<void> _onUpgrade(Database db, int oldV, int newV) async {
+    if (oldV < 2) {
+      await _createAttachmentsSchema(db);
+    }
+  }
 
   Future<void> close() async {
     await _db?.close();
@@ -112,8 +140,34 @@ class DatabaseService {
   Future<void> wipe() async {
     final db = await database;
     await db.delete('note_tags');
+    await db.delete('note_attachments');
     await db.delete('notes');
     await db.delete('tags');
     await db.delete('notebooks');
+  }
+
+  Future<void> insertAttachment(Attachment attachment) async {
+    final db = await database;
+    await db.insert(
+      'note_attachments',
+      attachment.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> deleteAttachment(String id) async {
+    final db = await database;
+    await db.delete('note_attachments', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<List<Attachment>> getAttachmentsForNote(String noteId) async {
+    final db = await database;
+    final rows = await db.query(
+      'note_attachments',
+      where: 'note_id = ?',
+      whereArgs: [noteId],
+      orderBy: 'created_at ASC',
+    );
+    return rows.map(Attachment.fromMap).toList();
   }
 }
