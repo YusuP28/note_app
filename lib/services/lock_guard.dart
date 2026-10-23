@@ -25,6 +25,7 @@ Future<bool> assertUnlocked(BuildContext context, Note note) async {
     return false;
   }
 }
+}
 
 Future<bool> toggleNoteLock(BuildContext context, Note note) async {
   try {

@@ -27,10 +27,14 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
   Future<void> _openNote(Note note) async {
     if (!await assertUnlocked(context, note)) return;
     if (!mounted) return;
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => EditScreen(note: note)),
-    );
+    try {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => EditScreen(note: note)),
+      );
+    } catch (e) {
+      debugPrint('archive openNote error: $e');
+    }
   }
 
   @override

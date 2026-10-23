@@ -39,18 +39,24 @@ class _HomeScreenState extends State<HomeScreen> {
     super.didChangeDependencies();
     if (!_initialized) {
       _initialized = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Gunakan addPostFrameCallback dengan pengecekan mounted yang ketat
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        final s = context.read<SettingsProvider>();
-        final n = context.read<NoteProvider>();
-        if (n.sortBy != s.sort) n.setSortBy(s.sort);
-        await n.load();
-        if (!mounted) return;
-        await context.read<NotebookProvider>().load();
-        if (!mounted) return;
-        await context.read<TagProvider>().load();
+        _initializeData();
       });
     }
+  }
+
+  Future<void> _initializeData() async {
+    if (!mounted) return;
+    final s = context.read<SettingsProvider>();
+    final n = context.read<NoteProvider>();
+    if (n.sortBy != s.sort) n.setSortBy(s.sort);
+    await n.load();
+    if (!mounted) return;
+    await context.read<NotebookProvider>().load();
+    if (!mounted) return;
+    await context.read<TagProvider>().load();
   }
 
   Future<void> _openNote(Note? note) async {

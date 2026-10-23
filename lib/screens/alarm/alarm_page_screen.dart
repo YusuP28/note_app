@@ -60,6 +60,7 @@ class _AlarmPageScreenState extends State<AlarmPageScreen>
         if (note != null && note.isLocked && await LockService().isEnabled()) {
           if (!mounted) return;
           setState(() {
+            if (!mounted) return;
             _masked = true;
             _title = 'Catatan terkunci';
             _body = '';
@@ -73,6 +74,7 @@ class _AlarmPageScreenState extends State<AlarmPageScreen>
 
       if (!mounted) return;
       setState(() {
+        if (!mounted) return;
         _masked = false;
         _title = _nativeTitle;
         _body = _nativeBody;
@@ -83,13 +85,18 @@ class _AlarmPageScreenState extends State<AlarmPageScreen>
   }
 
   Future<void> _unlock(Note note) async {
-    final unlocked = await assertUnlocked(context, note);
-    if (!unlocked || !mounted) return;
-    setState(() {
-      _masked = false;
-      _title = _nativeTitle;
-      _body = _nativeBody;
-    });
+    try {
+      final unlocked = await assertUnlocked(context, note);
+      if (!unlocked || !mounted) return;
+      setState(() {
+        if (!mounted) return;
+        _masked = false;
+        _title = _nativeTitle;
+        _body = _nativeBody;
+      });
+    } catch (e) {
+      debugPrint('alarm unlock error: $e');
+    }
   }
 
   Future<void> _stop() async {

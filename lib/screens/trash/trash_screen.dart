@@ -76,10 +76,14 @@ class _TrashScreenState extends State<TrashScreen> {
   Future<void> _openNote(Note note) async {
     if (!await assertUnlocked(context, note)) return;
     if (!mounted) return;
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => EditScreen(note: note)),
-    );
+    try {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => EditScreen(note: note)),
+      );
+    } catch (e) {
+      debugPrint('trash openNote error: $e');
+    }
   }
 
   Future<void> _empty() async {

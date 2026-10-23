@@ -124,7 +124,9 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
     if (!mounted) return;
 
     final oldCtrl = _contentCtrl;
+    // Cek mounted lagi di dalam setState untuk menghindari race condition
     setState(() {
+      if (!mounted) return;
       _titleCtrl.text = t;
       if (hasContent) {
         _contentCtrl = _buildQuillController(c);
@@ -132,10 +134,13 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
       }
       _dirty = true;
     });
+    // Cek mounted lagi sebelum dispose controller lama
+    if (!mounted) return;
     if (!identical(oldCtrl, _contentCtrl)) {
       oldCtrl.dispose();
     }
 
+    if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

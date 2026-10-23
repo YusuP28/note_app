@@ -4,6 +4,10 @@ import '../models/tag.dart';
 import '../services/database_service.dart';
 
 class TagProvider extends ChangeNotifier {
+  @override
+  void dispose() {
+    super.dispose();
+  }
   final DatabaseService _db = DatabaseService();
   final _uuid = const Uuid();
   List<Tag> _tags = [];

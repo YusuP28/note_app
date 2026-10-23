@@ -13,6 +13,10 @@ enum SortBy {
 enum ViewMode { list, grid }
 
 class SettingsProvider extends ChangeNotifier {
+  @override
+  void dispose() {
+    super.dispose();
+  }
   static const _kSort = 'sort_by';
   static const _kView = 'view_mode';
   static const _kSound = 'notification_sound';

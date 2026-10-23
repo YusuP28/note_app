@@ -118,90 +118,129 @@ Future<void> handleNoteAction(
     case 'read':
       if (!await assertUnlocked(context, note)) return;
       if (!context.mounted) return;
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => EditScreen(note: note, readOnly: true),
-        ),
-      );
+      try {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => EditScreen(note: note, readOnly: true),
+          ),
+        );
+      } catch (e) {
+        debugPrint('context read error: $e');
+      }
       break;
 
     case 'open':
       if (!await assertUnlocked(context, note)) return;
       if (!context.mounted) return;
-      await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => EditScreen(note: note)),
-      );
+      try {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => EditScreen(note: note)),
+        );
+      } catch (e) {
+        debugPrint('context open error: $e');
+      }
       break;
 
     case 'pin':
-      await provider.togglePin(note);
-      _snack(context, note.isPinned ? 'Disematkan' : 'Lepas sematan');
+      try {
+        await provider.togglePin(note);
+        if (context.mounted) _snack(context, note.isPinned ? 'Disematkan' : 'Lepas sematan');
+      } catch (e) {
+        debugPrint('context pin error: $e');
+      }
       break;
 
     case 'archive':
-      await provider.archive(note, true);
-      _snack(context, 'Diarsipkan');
+      try {
+        await provider.archive(note, true);
+        if (context.mounted) _snack(context, 'Diarsipkan');
+      } catch (e) {
+        debugPrint('context archive error: $e');
+      }
       break;
 
     case 'lock':
-      await toggleNoteLock(context, note);
+      try {
+        await toggleNoteLock(context, note);
+      } catch (e) {
+        debugPrint('context lock error: $e');
+      }
       break;
 
     case 'share_txt':
       if (!await assertUnlocked(context, note)) return;
-      await ExportService().shareAsTxt(note);
+      try {
+        await ExportService().shareAsTxt(note);
+      } catch (e) {
+        debugPrint('context share_txt error: $e');
+      }
       break;
 
     case 'share_text':
       if (!await assertUnlocked(context, note)) return;
-      await ExportService().shareAsText(note);
+      try {
+        await ExportService().shareAsText(note);
+      } catch (e) {
+        debugPrint('context share_text error: $e');
+      }
       break;
 
     case 'copy':
       if (!await assertUnlocked(context, note)) return;
-      final content = note.title.isEmpty
-          ? note.plainText
-          : '${note.title}\n\n${note.plainText}';
-      await Clipboard.setData(ClipboardData(text: content));
-      if (!context.mounted) return;
-      _snack(context, 'Teks disalin ke clipboard');
+      try {
+        final content = note.title.isEmpty
+            ? note.plainText
+            : '${note.title}\n\n${note.plainText}';
+        await Clipboard.setData(ClipboardData(text: content));
+        if (context.mounted) _snack(context, 'Teks disalin ke clipboard');
+      } catch (e) {
+        debugPrint('context copy error: $e');
+      }
       break;
 
     case 'info':
       if (!await assertUnlocked(context, note)) return;
       if (!context.mounted) return;
-      await showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Info Catatan'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _infoRow('ID', note.id.substring(0, 8)),
-              _infoRow('Dibuat', _fmt(note.createdAt)),
-              _infoRow('Diubah', _fmt(note.updatedAt)),
-              _infoRow('Notebook', note.notebookId?.substring(0, 8) ?? '-'),
-              _infoRow('Tag', '${note.tagIds.length}'),
-              _infoRow('Gambar', '${note.attachments.length}'),
-              _infoRow('Panjang', '${note.plainText.length} char'),
+      try {
+        await showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Info Catatan'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _infoRow('ID', note.id.substring(0, 8)),
+                _infoRow('Dibuat', _fmt(note.createdAt)),
+                _infoRow('Diubah', _fmt(note.updatedAt)),
+                _infoRow('Notebook', note.notebookId?.substring(0, 8) ?? '-'),
+                _infoRow('Tag', '${note.tagIds.length}'),
+                _infoRow('Gambar', '${note.attachments.length}'),
+                _infoRow('Panjang', '${note.plainText.length} char'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Tutup'),
+              ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Tutup'),
-            ),
-          ],
-        ),
-      );
+        );
+      } catch (e) {
+        debugPrint('context info error: $e');
+      }
       break;
 
     case 'trash':
-      await provider.trash(note);
-      _snack(context, 'Dipindah ke sampah');
+      try {
+        await provider.trash(note);
+        if (context.mounted) _snack(context, 'Dipindah ke sampah');
+      } catch (e) {
+        debugPrint('context trash error: $e');
+      }
       break;
   }
 }

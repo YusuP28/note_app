@@ -37,10 +37,14 @@ class _SearchScreenState extends State<SearchScreen> {
   Future<void> _openNote(Note note) async {
     if (!await assertUnlocked(context, note)) return;
     if (!mounted) return;
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => EditScreen(note: note)),
-    );
+    try {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => EditScreen(note: note)),
+      );
+    } catch (e) {
+      debugPrint('search openNote error: $e');
+    }
   }
 
   @override

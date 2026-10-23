@@ -10,6 +10,11 @@ import 'settings_provider.dart';
 enum NoteFilter { all, pinned, archived, trashed }
 
 class NoteProvider extends ChangeNotifier {
+  @override
+  void dispose() {
+    // Cleanup jika ada resources (timer, stream, dll)
+    super.dispose();
+  }
   final DatabaseService _db = DatabaseService();
   final AlarmService _alarm = AlarmService();
   final _uuid = const Uuid();

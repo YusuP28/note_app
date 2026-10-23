@@ -83,26 +83,34 @@ class SettingsScreen extends StatelessWidget {
             leading: const Icon(Icons.alarm),
             title: const Text('Test Alarm Sekarang'),
             subtitle: const Text('Uji notifikasi full-screen + suara'),
-            onTap: () async {
+onTap: () async {
+            try {
               final ok = await AlarmService().testNow();
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(ok ? 'Test alarm dipicu!' : 'Gagal.')),
                 );
               }
-            },
+            } catch (e) {
+              debugPrint('test alarm error: $e');
+            }
+          },
           ),
           ListTile(
             leading: const Icon(Icons.settings_voice_outlined),
             title: const Text('Pengaturan Suara Notifikasi'),
             subtitle: const Text('Buka channel Android (aktifkan suara)'),
             onTap: () async {
-              final ok = await AlarmService().openChannelSettings();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content: Text(ok ? 'Buka pengaturan channel' : 'Gagal')),
-                );
+              try {
+                final ok = await AlarmService().openChannelSettings();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(ok ? 'Buka pengaturan channel' : 'Gagal')),
+                  );
+                }
+              } catch (e) {
+                debugPrint('openChannelSettings error: $e');
               }
             },
           ),
@@ -111,16 +119,20 @@ class SettingsScreen extends StatelessWidget {
             title: const Text('Izin Exact Alarm'),
             subtitle: const Text('Izinkan notif tepat waktu (Android 12+)'),
             onTap: () async {
-              final can = await AlarmService().canScheduleExact();
-              if (can) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Izin sudah aktif')),
-                  );
+              try {
+                final can = await AlarmService().canScheduleExact();
+                if (can) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Izin sudah aktif')),
+                    );
+                  }
+                  return;
                 }
-                return;
+                await AlarmService().requestExactPermission();
+              } catch (e) {
+                debugPrint('canScheduleExact error: $e');
               }
-              await AlarmService().requestExactPermission();
             },
           ),
 

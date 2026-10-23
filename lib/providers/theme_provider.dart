@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeProvider extends ChangeNotifier {
+  @override
+  void dispose() {
+    super.dispose();
+  }
   static const _kMode = 'theme_mode';
   static const _kColor = 'theme_color';
 
