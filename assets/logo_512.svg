@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background circle (neumorphism base) -->
+  <circle cx="256" cy="256" r="240" fill="#E0E5EC"/>
+  
+  <!-- Inner shadow for neumorphism depth -->
+  <circle cx="256" cy="256" r="220" fill="none" stroke="#A3B1C6" stroke-width="4" opacity="0.3"/>
+  
+  <!-- Main note paper -->
+  <g transform="translate(106, 96)">
+    <!-- Paper shadow -->
+    <path d="M20,22 L284,22 L284,312 L20,312 Z" fill="#A3B1C6" opacity="0.15" transform="translate(4,4)"/>
+    
+    <!-- Paper base -->
+    <path d="M0,0 L284,0 L284,300 L0,300 Z" fill="#FFFFFF" stroke="#D1D9E6" stroke-width="1.5"/>
+    
+    <!-- Fold corner -->
+    <path d="M200,0 L284,0 L284,84 Z" fill="#F0F4F8" stroke="#D1D9E6" stroke-width="1"/>
+    <path d="M200,0 L284,84 L200,84 Z" fill="#E8EEF4"/>
+    
+    <!-- Lines on paper -->
+    <g stroke="#6C7A89" stroke-width="1.2" opacity="0.4">
+      <line x1="30" y1="60" x2="250" y2="60"/>
+      <line x1="30" y1="100" x2="250" y2="100"/>
+      <line x1="30" y1="140" x2="220" y2="140"/>
+      <line x1="30" y1="180" x2="250" y2="180" stroke-dasharray="8,4"/>
+      <line x1="30" y1="220" x2="180" y2="220" stroke-dasharray="8,4"/>
+    </g>
+    
+    <!-- Tag/label on top right -->
+    <g transform="translate(180, 20)">
+      <path d="M0,0 L40,0 L50,12 L40,24 L0,24 Z" fill="#7C5CFF" opacity="0.9"/>
+      <path d="M50,12 L40,24 L40,0 Z" fill="#6A4CE8"/>
+      <circle cx="10" cy="12" r="4" fill="white" opacity="0.3"/>
+    </g>
+    
+    <!-- Pin icon on top left -->
+    <g transform="translate(20, 20)">
+      <path d="M12,0 C12,0 12,10 6,15 C0,20 0,20 0,30 C0,36 6,36 6,36 L18,36 C18,36 24,36 24,30 C24,20 12,10 12,0 Z" fill="#E84545"/>
+      <circle cx="12" cy="22" r="3" fill="white" opacity="0.4"/>
+    </g>
+  </g>
+  
+  <!-- Lock icon (security) - positioned bottom right of paper -->
+  <g transform="translate(300, 240)" opacity="0.95">
+    <!-- Lock body -->
+    <path d="M20,12 C20,6.5 15.5,2 10,2 C4.5,2 0,6.5 0,12 L0,38 C0,43.5 4.5,48 10,48 C15.5,48 20,43.5 20,38 L20,12 Z" 
+          fill="#2D3A4A" stroke="#FFFFFF" stroke-width="1.5" opacity="0.2"/>
+    <path d="M20,12 C20,6.5 15.5,2 10,2 C4.5,2 0,6.5 0,12 L0,38 C0,43.5 4.5,48 10,48 C15.5,48 20,43.5 20,38 L20,12 Z" 
+          fill="#1E2A3A"/>
+    <!-- Shackle -->
+    <path d="M4,12 C4,6 9,2 10,2 C11,2 12,6 12,12" 
+          fill="none" stroke="#4A9EFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Keyhole -->
+    <circle cx="10" cy="28" r="3" fill="#4A9EFF" opacity="0.8"/>
+    <rect x="8.5" y="25" width="3" height="8" rx="1" fill="#4A9EFF" opacity="0.8"/>
+    <!-- Fingerprint indicator -->
+    <g transform="translate(10, 16)" fill="none" stroke="#4A9EFF" stroke-width="1.2" opacity="0.5">
+      <path d="M0,-4 C-6,-4 -6,4 0,4 C6,4 6,-4 0,-4"/>
+      <path d="M0,-2 C-4,-2 -4,2 0,2 C4,2 4,-2 0,-2"/>
+      <circle r="1" fill="#4A9EFF" opacity="0.6"/>
+    </g>
+  </g>
+  
+  <!-- Subtle accent ring -->
+  <circle cx="256" cy="256" r="248" fill="none" stroke="#7C5CFF" stroke-width="2" opacity="0.15"/>
+</svg>
