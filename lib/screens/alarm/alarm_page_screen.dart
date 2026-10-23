@@ -40,9 +40,14 @@ class _AlarmPageScreenState extends State<AlarmPageScreen>
           await _channel.invokeMethod<String>('getNoteId') ?? '';
       final t = await _channel.invokeMethod<String>('getTitle');
       final b = await _channel.invokeMethod<String>('getBody');
-      final note = noteId.isEmpty
-          ? null
-          : await DatabaseService().getNoteById(noteId);
+      Note? note;
+      if (noteId.isNotEmpty) {
+        try {
+          note = await DatabaseService().getNoteById(noteId);
+        } catch (e) {
+          debugPrint('alarm getNoteById error: $e');
+        }
+      }
       if (!mounted) return;
 
       final fallbackTitle =
@@ -51,23 +56,30 @@ class _AlarmPageScreenState extends State<AlarmPageScreen>
       _nativeBody = b ?? '';
       _note = note;
 
-      if (note != null && note.isLocked && await LockService().isEnabled()) {
-        if (!mounted) return;
-        setState(() {
-          _masked = true;
-          _title = 'Catatan terkunci';
-          _body = '';
-        });
-        await _unlock(note);
-        return;
+      try {
+        if (note != null && note.isLocked && await LockService().isEnabled()) {
+          if (!mounted) return;
+          setState(() {
+            _masked = true;
+            _title = 'Catatan terkunci';
+            _body = '';
+          });
+          await _unlock(note);
+          return;
+        }
+      } catch (e) {
+        debugPrint('alarm lock check error: $e');
       }
 
+      if (!mounted) return;
       setState(() {
         _masked = false;
         _title = _nativeTitle;
         _body = _nativeBody;
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('alarm loadData error: $e');
+    }
   }
 
   Future<void> _unlock(Note note) async {

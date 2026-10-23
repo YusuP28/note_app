@@ -8,50 +8,60 @@ import 'lock_service.dart';
 Future<bool> assertUnlocked(BuildContext context, Note note) async {
   if (!note.isLocked) return true;
 
-  final lock = LockService();
-  if (!await lock.isEnabled()) return true;
-  if (!context.mounted) return false;
+  try {
+    final lock = LockService();
+    if (!await lock.isEnabled()) return true;
+    if (!context.mounted) return false;
 
-  return _verifyIdentity(
-    context,
-    lock,
-    title: 'Catatan Terkunci',
-    reason: 'Verifikasi untuk membuka catatan terkunci',
-    confirmLabel: 'Buka',
-  );
+    return await _verifyIdentity(
+      context,
+      lock,
+      title: 'Catatan Terkunci',
+      reason: 'Verifikasi untuk membuka catatan terkunci',
+      confirmLabel: 'Buka',
+    );
+  } catch (e) {
+    debugPrint('assertUnlocked error: $e');
+    return false;
+  }
 }
 
 Future<bool> toggleNoteLock(BuildContext context, Note note) async {
-  final lock = LockService();
-  final enabled = await lock.isEnabled();
+  try {
+    final lock = LockService();
+    final enabled = await lock.isEnabled();
 
-  if (!enabled) {
-    if (!note.isLocked) {
-      if (context.mounted) {
-        _snack(context, 'Aktifkan PIN di Pengaturan > Kunci Aplikasi');
+    if (!enabled) {
+      if (!note.isLocked) {
+        if (context.mounted) {
+          _snack(context, 'Aktifkan PIN di Pengaturan > Kunci Aplikasi');
+        }
+        return false;
       }
-      return false;
+    } else {
+      if (!context.mounted) return false;
+      final verified = await _verifyIdentity(
+        context,
+        lock,
+        title: note.isLocked ? 'Buka Kunci Catatan' : 'Kunci Catatan',
+        reason: note.isLocked
+            ? 'Verifikasi untuk membuka kunci catatan'
+            : 'Verifikasi untuk mengunci catatan',
+        confirmLabel: note.isLocked ? 'Buka Kunci' : 'Kunci',
+      );
+      if (!verified) return false;
     }
-  } else {
-    if (!context.mounted) return false;
-    final verified = await _verifyIdentity(
-      context,
-      lock,
-      title: note.isLocked ? 'Buka Kunci Catatan' : 'Kunci Catatan',
-      reason: note.isLocked
-          ? 'Verifikasi untuk membuka kunci catatan'
-          : 'Verifikasi untuk mengunci catatan',
-      confirmLabel: note.isLocked ? 'Buka Kunci' : 'Kunci',
-    );
-    if (!verified) return false;
-  }
 
-  if (!context.mounted) return false;
-  await context.read<NoteProvider>().toggleLock(note);
-  if (context.mounted) {
-    _snack(context, note.isLocked ? 'Catatan dikunci' : 'Kunci dibuka');
+    if (!context.mounted) return false;
+    await context.read<NoteProvider>().toggleLock(note);
+    if (context.mounted) {
+      _snack(context, note.isLocked ? 'Catatan dikunci' : 'Kunci dibuka');
+    }
+    return true;
+  } catch (e) {
+    debugPrint('toggleNoteLock error: $e');
+    return false;
   }
-  return true;
 }
 
 Future<bool> _verifyIdentity(
@@ -61,6 +71,7 @@ Future<bool> _verifyIdentity(
   required String reason,
   required String confirmLabel,
 }) async {
+  try {
   var fpEnabled = false;
   try {
     fpEnabled = await lock.isFingerprintEnabled();
@@ -142,6 +153,10 @@ Future<bool> _verifyIdentity(
     _snack(context, 'PIN salah');
   }
   return valid;
+  } catch (e) {
+    debugPrint('_verifyIdentity error: $e');
+    return false;
+  }
 }
 
 Future<bool> _promptBackupCode(BuildContext context, LockService lock) async {

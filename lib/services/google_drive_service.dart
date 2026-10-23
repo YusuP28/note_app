@@ -21,14 +21,23 @@ class GoogleDriveService {
   /// Login Google
   Future<GoogleSignInAccount?> signIn() async {
     try {
+      // Coba sign in
       final account = await _googleSignIn.signIn();
       if (account != null) {
         _currentUser = account;
         debugPrint('Google signIn OK: ${account.email}');
+        return account;
       }
-      return account;
-    } catch (e) {
-      debugPrint('Google signIn error: $e');
+      // Kadang user batal, coba silent dulu
+      final silent = await _googleSignIn.signInSilently();
+      if (silent != null) {
+        _currentUser = silent;
+        debugPrint('Google signIn OK (silent fallback): ${silent.email}');
+        return silent;
+      }
+      return null;
+    } catch (e, st) {
+      debugPrint('Google signIn error: $e\n$st');
       rethrow;
     }
   }
@@ -48,7 +57,10 @@ class GoogleDriveService {
   Future<GoogleSignInAccount?> signInSilently() async {
     try {
       final account = await _googleSignIn.signInSilently();
-      if (account != null) _currentUser = account;
+      if (account != null) {
+        _currentUser = account;
+        debugPrint('Google silent signIn OK: ${account.email}');
+      }
       return account;
     } catch (e) {
       debugPrint('silent signIn error: $e');

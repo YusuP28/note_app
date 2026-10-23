@@ -34,7 +34,7 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
     try {
       final acc = await _drive.signIn();
       if (acc == null) {
-        _show('Login dibatalkan');
+        _show('Login dibatalkan atau gagal. Coba lagi atau cek koneksi.');
       } else {
         _show('Login OK: ${acc.email}');
       }
