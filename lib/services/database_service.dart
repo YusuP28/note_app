@@ -3,6 +3,7 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../models/attachment.dart';
+import '../models/note.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -158,6 +159,26 @@ class DatabaseService {
   Future<void> deleteAttachment(String id) async {
     final db = await database;
     await db.delete('note_attachments', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<Note?> getNoteById(String id) async {
+    final db = await database;
+    final rows = await db.query(
+      'notes',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+
+    final tagRows = await db.query(
+      'note_tags',
+      columns: ['tag_id'],
+      where: 'note_id = ?',
+      whereArgs: [id],
+    );
+    final tags = tagRows.map((e) => e['tag_id'] as String).toList();
+    return Note.fromMap(rows.first, tags: tags);
   }
 
   Future<List<Attachment>> getAttachmentsForNote(String noteId) async {

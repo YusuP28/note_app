@@ -117,10 +117,12 @@ class LockService {
     }
   }
 
-  Future<bool> authenticateBiometric() async {
+  Future<bool> authenticateBiometric({
+    String reason = 'Verifikasi untuk membuka catatan terkunci',
+  }) async {
     try {
       return await _auth.authenticate(
-        localizedReason: 'Verifikasi untuk membuka catatan terkunci',
+        localizedReason: reason,
         options: const AuthenticationOptions(
           biometricOnly: true,
           stickyAuth: true,

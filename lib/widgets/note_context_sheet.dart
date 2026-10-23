@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/note.dart';
 import '../providers/note_provider.dart';
 import '../services/export_service.dart';
+import '../services/lock_guard.dart';
 import '../screens/notes/edit_screen.dart';
 
 /// Tampilkan bottom sheet opsi untuk catatan.
@@ -40,7 +41,9 @@ Future<String?> showNoteContextSheet(BuildContext context, Note note) async {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    note.title.isEmpty ? 'Tanpa Judul' : note.title,
+                    note.isLocked
+                        ? 'Catatan terkunci'
+                        : (note.title.isEmpty ? 'Tanpa Judul' : note.title),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -113,6 +116,8 @@ Future<void> handleNoteAction(
 
   switch (action) {
     case 'read':
+      if (!await assertUnlocked(context, note)) return;
+      if (!context.mounted) return;
       await Navigator.push(
         context,
         MaterialPageRoute(
@@ -122,6 +127,8 @@ Future<void> handleNoteAction(
       break;
 
     case 'open':
+      if (!await assertUnlocked(context, note)) return;
+      if (!context.mounted) return;
       await Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => EditScreen(note: note)),
@@ -139,27 +146,31 @@ Future<void> handleNoteAction(
       break;
 
     case 'lock':
-      await provider.toggleLock(note);
-      _snack(context, note.isLocked ? 'Catatan dikunci' : 'Kunci dibuka');
+      await toggleNoteLock(context, note);
       break;
 
     case 'share_txt':
+      if (!await assertUnlocked(context, note)) return;
       await ExportService().shareAsTxt(note);
       break;
 
     case 'share_text':
+      if (!await assertUnlocked(context, note)) return;
       await ExportService().shareAsText(note);
       break;
 
     case 'copy':
+      if (!await assertUnlocked(context, note)) return;
       final content = note.title.isEmpty
           ? note.plainText
           : '${note.title}\n\n${note.plainText}';
       await Clipboard.setData(ClipboardData(text: content));
+      if (!context.mounted) return;
       _snack(context, 'Teks disalin ke clipboard');
       break;
 
     case 'info':
+      if (!await assertUnlocked(context, note)) return;
       if (!context.mounted) return;
       await showDialog(
         context: context,

@@ -26,6 +26,9 @@ class NoteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final bg = note.color != null ? Color(note.color!) : scheme.surfaceContainerLow;
+    final maskedTitle = note.isLocked
+        ? 'Catatan terkunci'
+        : (note.title.isEmpty ? 'Tanpa Judul' : note.title);
 
     return Card(
       color: bg,
@@ -50,7 +53,9 @@ class NoteCard extends StatelessWidget {
         child: Stack(
           children: [
             // Background image
-            if (note.bgImagePath != null && note.bgImagePath!.isNotEmpty)
+            if (!note.isLocked &&
+                note.bgImagePath != null &&
+                note.bgImagePath!.isNotEmpty)
               Positioned.fill(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(14),
@@ -82,7 +87,7 @@ class NoteCard extends StatelessWidget {
                     ),
                   Expanded(
                     child: Text(
-                      note.title.isEmpty ? 'Tanpa Judul' : note.title,
+                      maskedTitle,
                       maxLines: gridMode ? 2 : 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -104,7 +109,7 @@ class NoteCard extends StatelessWidget {
                     ),
                 ],
               ),
-              if (note.plainText.isNotEmpty) ...[
+              if (!note.isLocked && note.plainText.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(
                   note.plainText,

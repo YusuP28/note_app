@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../models/note.dart';
+import '../../services/database_service.dart';
+import '../../services/lock_guard.dart';
+import '../../services/lock_service.dart';
+
 class AlarmPageScreen extends StatefulWidget {
   const AlarmPageScreen({super.key});
 
@@ -13,6 +18,10 @@ class _AlarmPageScreenState extends State<AlarmPageScreen>
   static const _channel = MethodChannel('note_app/alarm_page');
   String _title = 'Pengingat';
   String _body = '';
+  String _nativeTitle = '';
+  String _nativeBody = '';
+  Note? _note;
+  bool _masked = false;
   late AnimationController _pulse;
 
   @override
@@ -22,20 +31,53 @@ class _AlarmPageScreenState extends State<AlarmPageScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
-    _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
   }
 
   Future<void> _loadData() async {
     try {
+      final noteId =
+          await _channel.invokeMethod<String>('getNoteId') ?? '';
       final t = await _channel.invokeMethod<String>('getTitle');
       final b = await _channel.invokeMethod<String>('getBody');
-      if (mounted) {
+      final note = noteId.isEmpty
+          ? null
+          : await DatabaseService().getNoteById(noteId);
+      if (!mounted) return;
+
+      final fallbackTitle =
+          note != null && note.title.isNotEmpty ? note.title : 'Pengingat';
+      _nativeTitle = (t == null || t.isEmpty) ? fallbackTitle : t;
+      _nativeBody = b ?? '';
+      _note = note;
+
+      if (note != null && note.isLocked && await LockService().isEnabled()) {
+        if (!mounted) return;
         setState(() {
-          _title = (t == null || t.isEmpty) ? 'Pengingat' : t;
-          _body = b ?? '';
+          _masked = true;
+          _title = 'Catatan terkunci';
+          _body = '';
         });
+        await _unlock(note);
+        return;
       }
+
+      setState(() {
+        _masked = false;
+        _title = _nativeTitle;
+        _body = _nativeBody;
+      });
     } catch (_) {}
+  }
+
+  Future<void> _unlock(Note note) async {
+    final unlocked = await assertUnlocked(context, note);
+    if (!unlocked || !mounted) return;
+    setState(() {
+      _masked = false;
+      _title = _nativeTitle;
+      _body = _nativeBody;
+    });
   }
 
   Future<void> _stop() async {
@@ -118,7 +160,36 @@ class _AlarmPageScreenState extends State<AlarmPageScreen>
                     ),
                   ),
                 ],
-                const SizedBox(height: 60),
+                const SizedBox(height: 40),
+                if (_masked) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: OutlinedButton.icon(
+                      onPressed:
+                          _note == null ? null : () => _unlock(_note!),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: scheme.onPrimary,
+                        side: BorderSide(
+                          color: scheme.onPrimary.withOpacity(0.7),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(32),
+                        ),
+                      ),
+                      icon: const Icon(Icons.lock_open, size: 24),
+                      label: const Text(
+                        'BUKA PENGINGAT',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 SizedBox(
                   width: double.infinity,
                   height: 72,

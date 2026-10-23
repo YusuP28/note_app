@@ -95,13 +95,22 @@ class NoteProvider extends ChangeNotifier {
           .replaceAll('_', r'\_');
       final like = '%$esc%';
       final rows = await db.rawQuery(
-        "SELECT * FROM notes "
-        "WHERE is_trashed = 0 AND is_archived = 0 "
-        "AND (title LIKE ? ESCAPE '\\' OR plain_text LIKE ? ESCAPE '\\') "
-        "ORDER BY is_pinned DESC, updated_at DESC",
+        "SELECT n.*, "
+        "(SELECT GROUP_CONCAT(tag_id) FROM note_tags WHERE note_id = n.id) "
+        "AS tag_ids "
+        "FROM notes n "
+        "WHERE n.is_trashed = 0 AND n.is_archived = 0 "
+        "AND (n.title LIKE ? ESCAPE '\\' OR n.plain_text LIKE ? ESCAPE '\\') "
+        "ORDER BY n.is_pinned DESC, n.updated_at DESC",
         [like, like],
       );
-      _filtered = rows.map((r) => Note.fromMap(r)).toList();
+      _filtered = rows.map((r) {
+        final rawTags = r['tag_ids'] as String?;
+        final tags = rawTags == null || rawTags.isEmpty
+            ? const <String>[]
+            : rawTags.split(',');
+        return Note.fromMap(r, tags: tags);
+      }).toList();
     } catch (e) {
       _filtered = [];
       debugPrint('search error: $e');
@@ -187,14 +196,28 @@ class NoteProvider extends ChangeNotifier {
   Future<void> updateNote(Note note) async {
     note.updatedAt = DateTime.now();
     final db = await _db.database;
-    await db
-        .update('notes', note.toMap(), where: 'id = ?', whereArgs: [note.id]);
-    await db.delete('note_tags', where: 'note_id = ?', whereArgs: [note.id]);
-    for (final tagId in note.tagIds) {
-      try {
-        await db.insert('note_tags', {'note_id': note.id, 'tag_id': tagId});
-      } catch (_) {}
-    }
+    await db.transaction((txn) async {
+      await txn.update(
+        'notes',
+        note.toMap(),
+        where: 'id = ?',
+        whereArgs: [note.id],
+      );
+      await txn.delete(
+        'note_tags',
+        where: 'note_id = ?',
+        whereArgs: [note.id],
+      );
+      for (final tagId in note.tagIds) {
+        try {
+          await txn.insert(
+            'note_tags',
+            {'note_id': note.id, 'tag_id': tagId},
+            conflictAlgorithm: ConflictAlgorithm.ignore,
+          );
+        } catch (_) {}
+      }
+    });
     final i = _notes.indexWhere((n) => n.id == note.id);
     if (i >= 0) {
       _notes[i] = note;

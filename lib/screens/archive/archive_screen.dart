@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/note.dart';
 import '../../providers/note_provider.dart';
+import '../../services/lock_guard.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/note_card.dart';
+import '../notes/edit_screen.dart';
 
 class ArchiveScreen extends StatefulWidget {
   const ArchiveScreen({super.key});
@@ -19,6 +22,15 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<NoteProvider>().setFilter(NoteFilter.archived);
     });
+  }
+
+  Future<void> _openNote(Note note) async {
+    if (!await assertUnlocked(context, note)) return;
+    if (!mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => EditScreen(note: note)),
+    );
   }
 
   @override
@@ -46,7 +58,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                   },
                   child: NoteCard(
                     note: n,
-                    onTap: () {},
+                    onTap: () => _openNote(n),
                     onLongPress: () async {
                       final ok = await showDialog<bool>(
                         context: context,

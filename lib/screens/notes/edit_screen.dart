@@ -27,7 +27,7 @@ class EditScreen extends StatefulWidget {
   State<EditScreen> createState() => _EditScreenState();
 }
 
-class _EditScreenState extends State<EditScreen> {
+class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
   late TextEditingController _titleCtrl;
   late quill.QuillController _contentCtrl;
   final _scrollCtrl = ScrollController();
@@ -36,16 +36,19 @@ class _EditScreenState extends State<EditScreen> {
   late Note _working;
   bool _isNew = false;
   bool _saving = false;
+  bool _dirty = false;
   DateTime? _reminder;
   String? _bgImagePath;
   double _bgOpacity = 0.3;
   Timer? _draftTimer;
-  late final String _draftKeyTitle;
-  late final String _draftKeyContent;
+
+  String get _draftKeyTitle => 'draft_${_working.id}_title';
+  String get _draftKeyContent => 'draft_${_working.id}_content';
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _isNew = widget.note == null;
     _working = widget.note ??
         Note(id: '', createdAt: DateTime.now(), updatedAt: DateTime.now());
@@ -64,11 +67,9 @@ class _EditScreenState extends State<EditScreen> {
       }
     });
 
-    _draftKeyTitle = 'draft_${_working.id}_title';
-    _draftKeyContent = 'draft_${_working.id}_content';
     _titleCtrl.addListener(_onDraftChange);
     _contentCtrl.addListener(_onDraftChange);
-    if (_isNew) _restoreDraft();
+    if (!widget.readOnly) _restoreDraft();
   }
 
   quill.QuillController _buildQuillController(String content) {
@@ -84,7 +85,8 @@ class _EditScreenState extends State<EditScreen> {
         }
       }
     } catch (_) {}
-    final doc = quill.Document()..insert(0, content);
+    final doc = quill.Document();
+    if (content.isNotEmpty) doc.insert(0, content);
     return quill.QuillController(
       document: doc,
       selection: const TextSelection.collapsed(offset: 0),
@@ -93,6 +95,7 @@ class _EditScreenState extends State<EditScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _draftTimer?.cancel();
     _titleCtrl.dispose();
     _contentCtrl.dispose();
@@ -101,27 +104,58 @@ class _EditScreenState extends State<EditScreen> {
     super.dispose();
   }
 
-  Future<void> _restoreDraft() async {
-    final p = await SharedPreferences.getInstance();
-    final t = p.getString(_draftKeyTitle) ?? '';
-    final c = p.getString(_draftKeyContent) ?? '';
-    if (t.isNotEmpty || c.isNotEmpty) {
-      if (!mounted) return;
-      setState(() {
-        _titleCtrl.text = t;
-        if (c.isNotEmpty) _contentCtrl = _buildQuillController(c);
-      });
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      _draftTimer?.cancel();
+      _saveDraft();
     }
   }
 
+  Future<void> _restoreDraft() async {
+    final p = await SharedPreferences.getInstance();
+    final hasTitle = p.containsKey(_draftKeyTitle);
+    final hasContent = p.containsKey(_draftKeyContent);
+    if (!hasTitle && !hasContent) return;
+
+    final t = p.getString(_draftKeyTitle) ?? '';
+    final c = p.getString(_draftKeyContent) ?? '';
+    if (!mounted) return;
+
+    final oldCtrl = _contentCtrl;
+    setState(() {
+      _titleCtrl.text = t;
+      if (hasContent) {
+        _contentCtrl = _buildQuillController(c);
+        _contentCtrl.addListener(_onDraftChange);
+      }
+      _dirty = true;
+    });
+    if (!identical(oldCtrl, _contentCtrl)) {
+      oldCtrl.dispose();
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Draft dipulihkan'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    });
+  }
+
   void _onDraftChange() {
-    if (!_isNew) return;
+    if (widget.readOnly) return;
+    _dirty = true;
     _draftTimer?.cancel();
     _draftTimer = Timer(const Duration(seconds: 3), _saveDraft);
   }
 
   Future<void> _saveDraft() async {
-    if (!_isNew) return;
+    if (widget.readOnly || !_dirty) return;
     final p = await SharedPreferences.getInstance();
     await p.setString(_draftKeyTitle, _titleCtrl.text);
     await p.setString(_draftKeyContent, _deltaJson());
@@ -139,14 +173,18 @@ class _EditScreenState extends State<EditScreen> {
   Future<bool> _save({bool silent = false}) async {
     if (_saving) return false;
     _saving = true;
+    _draftTimer?.cancel();
 
     final p = context.read<NoteProvider>();
     final title = _titleCtrl.text.trim();
     final delta = _deltaJson();
     final plain = _plainText();
+    final blankTitleKey = _isNew ? _draftKeyTitle : null;
+    final blankContentKey = _isNew ? _draftKeyContent : null;
 
-    if (title.isEmpty && plain.isEmpty && _bgImagePath == null) {
+    if (_isNew && title.isEmpty && plain.isEmpty && _bgImagePath == null) {
       await _clearDraft();
+      _dirty = false;
       _saving = false;
       return true;
     }
@@ -177,7 +215,13 @@ class _EditScreenState extends State<EditScreen> {
         await p.updateNote(_working);
         await p.setReminder(_working, _reminder);
       }
+      _dirty = false;
       await _clearDraft();
+      if (blankTitleKey != null && blankContentKey != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(blankTitleKey);
+        await prefs.remove(blankContentKey);
+      }
       if (!silent && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Tersimpan'), duration: Duration(seconds: 1)),

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../models/note.dart';
 import '../../providers/note_provider.dart';
+import '../../services/lock_guard.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/note_card.dart';
 import '../notes/edit_screen.dart';
@@ -71,6 +73,15 @@ class _TrashScreenState extends State<TrashScreen> {
     }
   }
 
+  Future<void> _openNote(Note note) async {
+    if (!await assertUnlocked(context, note)) return;
+    if (!mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => EditScreen(note: note)),
+    );
+  }
+
   Future<void> _empty() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -93,7 +104,7 @@ class _TrashScreenState extends State<TrashScreen> {
   }
 
   /// Bottom sheet long-press menu
-  void _showTrashMenu(NoteProvider p, dynamic n) {
+  void _showTrashMenu(NoteProvider p, Note n) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -122,7 +133,9 @@ class _TrashScreenState extends State<TrashScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      n.title.isEmpty ? '(Tanpa judul)' : n.title,
+                      n.isLocked
+                          ? 'Catatan terkunci'
+                          : (n.title.isEmpty ? '(Tanpa judul)' : n.title),
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -151,10 +164,7 @@ class _TrashScreenState extends State<TrashScreen> {
               subtitle: const Text('Lihat/edit catatan'),
               onTap: () {
                 Navigator.pop(ctx);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => EditScreen(note: n)),
-                );
+                _openNote(n);
               },
             ),
 
@@ -271,10 +281,7 @@ class _TrashScreenState extends State<TrashScreen> {
                         },
                         child: NoteCard(
                           note: n,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => EditScreen(note: n)),
-                          ),
+                          onTap: () => _openNote(n),
                           onLongPress: () => _showTrashMenu(p, n),
                         ),
                       );

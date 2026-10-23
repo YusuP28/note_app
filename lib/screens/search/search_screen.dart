@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/note.dart';
 import '../../providers/note_provider.dart';
+import '../../services/lock_guard.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/note_card.dart';
 import '../notes/edit_screen.dart';
@@ -30,6 +32,15 @@ class _SearchScreenState extends State<SearchScreen> {
     _debounce = Timer(const Duration(milliseconds: 250), () {
       context.read<NoteProvider>().search(v);
     });
+  }
+
+  Future<void> _openNote(Note note) async {
+    if (!await assertUnlocked(context, note)) return;
+    if (!mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => EditScreen(note: note)),
+    );
   }
 
   @override
@@ -71,10 +82,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     final n = p.notes[i];
                     return NoteCard(
                       note: n,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => EditScreen(note: n)),
-                      ),
+                      onTap: () => _openNote(n),
                       onLongPress: () {},
                     );
                   },
