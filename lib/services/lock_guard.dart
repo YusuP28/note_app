@@ -7,6 +7,7 @@ import 'lock_service.dart';
 
 Future<bool> assertUnlocked(BuildContext context, Note note) async {
   if (!note.isLocked) return true;
+  if (!context.mounted) return false;
 
   try {
     final lock = LockService();
@@ -38,6 +39,8 @@ Future<bool> toggleNoteLock(BuildContext context, Note note) async {
         }
         return false;
       }
+      // ⚠️ Note masih locked tapi PIN disabled → tidak bisa dibuka
+      // Tampar ke _verifyIdentity untuk unlock (hanya gagal jika user input salah)
     } else {
       if (!context.mounted) return false;
       final verified = await _verifyIdentity(

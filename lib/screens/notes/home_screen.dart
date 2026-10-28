@@ -147,6 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _pinSelected() async {
     final p = context.read<NoteProvider>();
+    if (!mounted) return;
     for (final id in _selectedIds) {
       final note = p.notes.firstWhere((n) => n.id == id, orElse: () => Note(id: '', createdAt: DateTime.now(), updatedAt: DateTime.now()));
       if (note.id.isNotEmpty) await p.togglePin(note);

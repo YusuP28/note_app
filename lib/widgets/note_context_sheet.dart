@@ -145,8 +145,9 @@ Future<void> handleNoteAction(
 
     case 'pin':
       try {
+        if (!context.mounted) return;
         await provider.togglePin(note);
-        if (context.mounted) _snack(context, note.isPinned ? 'Disematkan' : 'Lepas sematan');
+        _snack(context, note.isPinned ? 'Disematkan' : 'Lepas sematan');
       } catch (e) {
         debugPrint('context pin error: $e');
       }
