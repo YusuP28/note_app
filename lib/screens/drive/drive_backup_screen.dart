@@ -27,6 +27,7 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
   }
 
   Future<void> _signIn() async {
+    if (!mounted) return;
     setState(() {
       _busy = true;
       _status = 'Login...';
@@ -56,6 +57,7 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
   }
 
   Future<void> _backup() async {
+    if (!mounted) return;
     setState(() {
       _busy = true;
       _status = 'Menyiapkan backup...';
@@ -86,6 +88,7 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
   }
 
   Future<void> _restore() async {
+    if (!mounted) return;
     // List semua backup
     setState(() {
       _busy = true;
@@ -126,6 +129,7 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
       );
       if (picked == null) return;
 
+      if (!mounted) return;
       setState(() => _status = 'Download dari Drive...');
       final bytes = await _drive.downloadBackup(
         fileName: picked['name'] as String,
@@ -135,6 +139,7 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
         return;
       }
 
+      if (!mounted) return;
       // Tulis ke temp file
       setState(() => _status = 'Restore data...');
       final tmpPath = await BackupService().writeTempBackup(
