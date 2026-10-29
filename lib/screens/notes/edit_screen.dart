@@ -417,6 +417,8 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
       },
       child: Scaffold(
         backgroundColor: editorBg,
+        // Background tidak boleh ikut ter-resize saat keyboard muncul.
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           backgroundColor: editorBg,
           foregroundColor: textColor,
@@ -578,19 +580,31 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
             // Background image
             if (_bgImagePath != null && _bgImagePath!.isNotEmpty)
               Positioned.fill(
-                child: Opacity(
-                  opacity: _bgOpacity,
-                  child: Image.file(
-                    File(_bgImagePath!),
-                    fit: BoxFit.cover,
-                    gaplessPlayback: true,
-                    cacheWidth: 1080,
-                    errorBuilder: (_, __, ___) => const SizedBox(),
+                child: SizedBox(
+                  // Kunci tinggi ke layar penuh agar tidak bergerak saat keyboard muncul.
+                  height: MediaQuery.of(context).size.height,
+                  child: Opacity(
+                    opacity: _bgOpacity,
+                    child: Image.file(
+                      File(_bgImagePath!),
+                      fit: BoxFit.cover,
+                      gaplessPlayback: true,
+                      cacheWidth: 1080,
+                      errorBuilder: (_, __, ___) => const SizedBox(),
+                    ),
                   ),
                 ),
               ),
             // Main content (dengan bg semi-transparan)
-            Container(
+            // Hanya area ini yang turun/bergeser mengikuti keyboard.
+            Positioned.fill(
+              child: AnimatedPadding(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: Container(
               color: editorBg.withOpacity(_bgImagePath != null ? 0.7 : 1.0),
               child: Column(
               children: [
@@ -743,7 +757,9 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
                 ),
                 if (_working.tagIds.isNotEmpty) _tagChips(tags, textColor),
               ],
-            ),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
