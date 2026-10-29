@@ -52,9 +52,9 @@ class NoteCard extends StatelessWidget {
         onLongPress: onLongPress,
         child: Stack(
           children: [
-            // Background image
-            if (!note.isLocked &&
-                note.bgImagePath != null &&
+            // Background image — tetap tampil walau catatan terkunci,
+            // hanya teks judul/isi yang disamarkan.
+            if (note.bgImagePath != null &&
                 note.bgImagePath!.isNotEmpty)
               Positioned.fill(
                 child: ClipRRect(

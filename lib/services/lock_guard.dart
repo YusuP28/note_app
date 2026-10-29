@@ -120,9 +120,10 @@ Future<bool> _verifyIdentity(
                 child: const Text('Lupa PIN?'),
               ),
               if (fpEnabled)
-                TextButton(
+                TextButton.icon(
                   onPressed: () => Navigator.pop(ctx, 'bio'),
-                  child: const Text('Fingerprint'),
+                  icon: const Icon(Icons.fingerprint, size: 18),
+                  label: const Text('Sidik Jari'),
                 ),
             ],
           ),

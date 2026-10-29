@@ -12,6 +12,7 @@ import '../../services/image_attachment_service.dart';
 import '../../services/lock_service.dart';
 import '../drive/drive_backup_screen.dart';
 import '../../themes/neumo.dart';
+import '../../utils/app_routes.dart';
 import '../../widgets/image_picker_sheet.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -159,7 +160,7 @@ onTap: () async {
             subtitle: const Text('Login Google + upload/download backup'),
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const DriveBackupScreen()),
+              globalBackgroundRoute((_) => const DriveBackupScreen()),
             ),
           ),
           ListTile(
@@ -304,6 +305,7 @@ onTap: () async {
             subtitle: const Text('PIN + fingerprint untuk catatan terkunci'),
             onTap: () => _openLockSettings(context),
           ),
+          const _FingerprintUnlockTile(),
 
           // ============ TENTANG ============
           _section(context, 'Tentang'),
@@ -805,4 +807,84 @@ onTap: () async {
           ),
         ),
       );
+}
+
+/// Toggle "Buka Catatan dengan Sidik Jari".
+/// Preferensi disimpan di SharedPreferences lewat [LockService].
+class _FingerprintUnlockTile extends StatefulWidget {
+  const _FingerprintUnlockTile();
+
+  @override
+  State<_FingerprintUnlockTile> createState() => _FingerprintUnlockTileState();
+}
+
+class _FingerprintUnlockTileState extends State<_FingerprintUnlockTile> {
+  bool _loading = true;
+  bool _pinEnabled = false;
+  bool _supported = false;
+  bool _enabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final lock = LockService();
+    final pinEnabled = await lock.isEnabled();
+    final supported = pinEnabled && await lock.canUseBiometric();
+    final enabled = pinEnabled && await lock.isFingerprintEnabled();
+    if (!mounted) return;
+    setState(() {
+      _pinEnabled = pinEnabled;
+      _supported = supported;
+      _enabled = enabled;
+      _loading = false;
+    });
+  }
+
+  Future<void> _toggle(bool value) async {
+    if (!_supported) {
+      // Refresh dulu — bisa jadi PIN baru saja diaktifkan dari dialog lain.
+      await _load();
+      if (!mounted) return;
+    }
+    if (!_supported) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _pinEnabled
+                ? 'Perangkat tidak mendukung sidik jari'
+                : 'Aktifkan Kunci Aplikasi (PIN) terlebih dahulu',
+          ),
+        ),
+      );
+      return;
+    }
+    await LockService().setFingerprint(value);
+    if (!mounted) return;
+    setState(() => _enabled = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = _loading
+        ? 'Memeriksa...'
+        : !_pinEnabled
+            ? 'Aktifkan Kunci Aplikasi dulu'
+            : !_supported
+                ? 'Tidak tersedia di perangkat ini'
+                : (_enabled
+                    ? 'Aktif — buka catatan dengan sidik jari'
+                    : 'Nonaktif');
+
+    return SwitchListTile(
+      secondary: const Icon(Icons.fingerprint),
+      title: const Text('Buka Catatan dengan Sidik Jari'),
+      subtitle: Text(subtitle),
+      value: _enabled,
+      onChanged: _loading ? null : _toggle,
+    );
+  }
 }

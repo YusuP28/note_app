@@ -13,6 +13,7 @@ import '../../widgets/empty_state.dart';
 import '../../widgets/note_card.dart';
 import '../../themes/neumo.dart';
 import '../../widgets/note_context_sheet.dart';
+import '../../utils/app_routes.dart';
 import '../archive/archive_screen.dart';
 import '../notebooks/notebooks_screen.dart';
 import '../search/search_screen.dart';
@@ -209,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _openDrawerItem(Widget screen) {
     Navigator.pop(context);
-    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+    Navigator.push(context, globalBackgroundRoute((_) => screen));
   }
 
   Future<void> _showSortMenu() async {
@@ -319,15 +320,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: const Icon(Icons.search),
                     onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const SearchScreen()),
+                      globalBackgroundRoute((_) => const SearchScreen()),
                     ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.settings_outlined),
                     onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute(
-                          builder: (_) => const SettingsScreen()),
+                      globalBackgroundRoute((_) => const SettingsScreen()),
                     ),
                   ),
                 ],

@@ -11,7 +11,7 @@ class DatabaseService {
   DatabaseService._internal();
 
   static Database? _db;
-  static const int _version = 2;
+  static const int _version = 3;
   static const String _dbName = 'note_app_v7.db';
 
   Future<Database> get database async {
@@ -130,6 +130,21 @@ class DatabaseService {
   Future<void> _onUpgrade(Database db, int oldV, int newV) async {
     if (oldV < 2) {
       await _createAttachmentsSchema(db);
+    }
+    if (oldV < 3) {
+      await _ensureBgOpacityColumn(db);
+    }
+  }
+
+  /// Migrasi aman: pastikan kolom transparansi background catatan ada.
+  /// DB lama bisa saja belum punya `bg_opacity`.
+  Future<void> _ensureBgOpacityColumn(Database db) async {
+    final cols = await db.rawQuery('PRAGMA table_info(notes)');
+    final exists = cols.any((c) => c['name'] == 'bg_opacity');
+    if (!exists) {
+      await db.execute(
+        'ALTER TABLE notes ADD COLUMN bg_opacity INTEGER NOT NULL DEFAULT 300',
+      );
     }
   }
 
