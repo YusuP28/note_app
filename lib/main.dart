@@ -18,6 +18,7 @@ import 'services/auto_backup_service.dart';
 import 'services/image_attachment_service.dart';
 import 'themes/app_theme.dart';
 import 'utils/locale_init.dart';
+import 'widgets/global_background.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -86,6 +87,10 @@ class NoteApp extends StatelessWidget {
             theme: AppTheme.light(t.seed),
             darkTheme: AppTheme.dark(t.seed),
             themeMode: t.mode,
+            // Background global di belakang seluruh route.
+            builder: (context, child) => GlobalBackground(
+              child: child ?? const SizedBox.shrink(),
+            ),
             home: const _Launcher(),
           );
         },

@@ -12,6 +12,7 @@ import '../../services/image_attachment_service.dart';
 import '../../services/lock_service.dart';
 import '../drive/drive_backup_screen.dart';
 import '../../themes/neumo.dart';
+import '../../widgets/image_picker_sheet.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -22,10 +23,12 @@ class SettingsScreen extends StatelessWidget {
     final settings = Provider.of<SettingsProvider>(context);
 
     return Scaffold(
+      // Biarkan background global tembus di layar pengaturan.
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text('Pengaturan'),
         elevation: 0,
-        backgroundColor: Neumo.bg(context),
+        backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
       ),
       body: ListView(
@@ -39,6 +42,16 @@ class SettingsScreen extends StatelessWidget {
             onChanged: (val) => themeProvider.setMode(
               val ? ThemeMode.dark : ThemeMode.light,
             ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.wallpaper_outlined),
+            title: const Text('Background Aplikasi (Global)'),
+            subtitle: Text(
+              settings.hasGlobalBackground
+                  ? 'Aktif • transparansi ${(settings.globalBgOpacity * 100).round()}%'
+                  : 'Tidak aktif',
+            ),
+            onTap: () => _showGlobalBackgroundSheet(context, settings),
           ),
 
           const Divider(),
@@ -650,6 +663,132 @@ onTap: () async {
             child: const Text('OK, sudah dicatat'),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _showGlobalBackgroundSheet(
+      BuildContext context, SettingsProvider settings) async {
+    final hasBg = settings.hasGlobalBackground;
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Background Aplikasi (Global)',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Pilih Gambar'),
+              subtitle: const Text('Gunakan gambar dari galeri/kamera'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickGlobalBackground(context, settings);
+              },
+            ),
+            if (hasBg) ...[
+              ListTile(
+                leading: const Icon(Icons.opacity),
+                title: const Text('Atur Transparansi'),
+                subtitle: Text(
+                  '${(settings.globalBgOpacity * 100).round()}%',
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showGlobalBackgroundOpacity(context, settings);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('Hapus Gambar'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await settings.setGlobalBackground(null);
+                },
+              ),
+            ],
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickGlobalBackground(
+      BuildContext context, SettingsProvider settings) async {
+    final source = await showImageSourceSheet(context);
+    if (source == null) return;
+
+    String? path;
+    if (source == 'gallery') {
+      final files = await ImageAttachmentService().pickFromGallery();
+      if (files.isNotEmpty) path = files.first;
+    } else {
+      path = await ImageAttachmentService().pickFromCamera();
+    }
+    if (path != null) {
+      await settings.setGlobalBackground(path);
+    }
+  }
+
+  void _showGlobalBackgroundOpacity(
+      BuildContext context, SettingsProvider settings) {
+    var value = settings.globalBgOpacity;
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Transparansi Background Global',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.brightness_low, size: 18),
+                  Expanded(
+                    child: Slider(
+                      value: value,
+                      min: 0.0,
+                      max: 1.0,
+                      divisions: 20,
+                      label: '${(value * 100).round()}%',
+                      onChanged: (v) {
+                        setLocal(() => value = v);
+                        settings.setGlobalBackgroundOpacity(v);
+                      },
+                    ),
+                  ),
+                  const Icon(Icons.brightness_high, size: 18),
+                ],
+              ),
+              Center(
+                child: Text(
+                  '${(value * 100).round()}%',
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Semakin kecil % → background lebih transparan',
+                style: TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

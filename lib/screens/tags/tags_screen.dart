@@ -122,7 +122,13 @@ class TagsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.watch<TagProvider>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Tag')),
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        title: const Text('Tag'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _addOrEdit(context),
         child: const Icon(Icons.add),

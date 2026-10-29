@@ -51,7 +51,11 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final p = context.watch<NoteProvider>();
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
         title: TextField(
           controller: _ctrl,
           autofocus: true,

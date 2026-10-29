@@ -194,7 +194,11 @@ class _TrashScreenState extends State<TrashScreen> {
   Widget build(BuildContext context) {
     final p = context.watch<NoteProvider>();
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
         title: const Text('Sampah'),
         actions: [
           if (p.notes.isNotEmpty)

@@ -287,12 +287,14 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       },
       child: Scaffold(
+        // Biarkan background global tembus di layar utama.
+        backgroundColor: Colors.transparent,
         appBar: _selectionMode
             ? _buildSelectionAppBar(context, p)
             : AppBar(
                 title: const SizedBox.shrink(),
                 elevation: 0,
-                backgroundColor: Neumo.bg(context),
+                backgroundColor: Colors.transparent,
                 surfaceTintColor: Colors.transparent,
                 shadowColor: Neumo.shadowDark(context),
                 actions: [
@@ -420,6 +422,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   PreferredSizeWidget _buildSelectionAppBar(BuildContext context, NoteProvider p) {
     return AppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      surfaceTintColor: Colors.transparent,
       leading: IconButton(
         icon: const Icon(Icons.close),
         onPressed: _exitSelectionMode,

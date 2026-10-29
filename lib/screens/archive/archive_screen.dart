@@ -41,7 +41,13 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
   Widget build(BuildContext context) {
     final p = context.watch<NoteProvider>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Arsip')),
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        title: const Text('Arsip'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+      ),
       body: p.notes.isEmpty
           ? const EmptyState(icon: Icons.archive_outlined, title: 'Arsip kosong')
           : ListView.builder(

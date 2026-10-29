@@ -23,6 +23,8 @@ class SettingsProvider extends ChangeNotifier {
   static const _kAutoBackupDays = 'auto_backup_days';
   static const _kLastAutoBackup = 'last_auto_backup';
   static const _kUseOriginalQuality = 'use_original_quality';
+  static const _kGlobalBgPath = 'global_bg_path';
+  static const _kGlobalBgOpacity = 'global_bg_opacity';
 
   SortBy _sort = SortBy.updatedDesc;
   ViewMode _view = ViewMode.list;
@@ -30,6 +32,8 @@ class SettingsProvider extends ChangeNotifier {
   int _autoBackupDays = 0; // 0 = off
   int _lastAutoBackupMs = 0;
   bool _useOriginalQuality = false;
+  String? _globalBgPath;
+  double _globalBgOpacity = 0.3;
 
   SortBy get sort => _sort;
   ViewMode get view => _view;
@@ -40,6 +44,10 @@ class SettingsProvider extends ChangeNotifier {
       ? DateTime.fromMillisecondsSinceEpoch(_lastAutoBackupMs)
       : null;
   bool get useOriginalQuality => _useOriginalQuality;
+  String? get globalBgPath => _globalBgPath;
+  double get globalBgOpacity => _globalBgOpacity;
+  bool get hasGlobalBackground =>
+      _globalBgPath != null && _globalBgPath!.isNotEmpty;
 
   // Alias untuk kompatibilitas (kalau ada yang pakai isGrid)
   bool get isGrid => _view == ViewMode.grid;
@@ -63,6 +71,9 @@ class SettingsProvider extends ChangeNotifier {
     _autoBackupDays = p.getInt(_kAutoBackupDays) ?? 0;
     _lastAutoBackupMs = p.getInt(_kLastAutoBackup) ?? 0;
     _useOriginalQuality = p.getBool(_kUseOriginalQuality) ?? false;
+    _globalBgPath = p.getString(_kGlobalBgPath);
+    _globalBgOpacity =
+        (p.getDouble(_kGlobalBgOpacity) ?? 0.3).clamp(0.0, 1.0).toDouble();
 
     notifyListeners();
   }
@@ -96,6 +107,24 @@ class SettingsProvider extends ChangeNotifier {
     _useOriginalQuality = v;
     final p = await SharedPreferences.getInstance();
     await p.setBool(_kUseOriginalQuality, v);
+    notifyListeners();
+  }
+
+  Future<void> setGlobalBackground(String? path) async {
+    _globalBgPath = (path == null || path.isEmpty) ? null : path;
+    final p = await SharedPreferences.getInstance();
+    if (_globalBgPath == null) {
+      await p.remove(_kGlobalBgPath);
+    } else {
+      await p.setString(_kGlobalBgPath, _globalBgPath!);
+    }
+    notifyListeners();
+  }
+
+  Future<void> setGlobalBackgroundOpacity(double v) async {
+    _globalBgOpacity = v.clamp(0.0, 1.0).toDouble();
+    final p = await SharedPreferences.getInstance();
+    await p.setDouble(_kGlobalBgOpacity, _globalBgOpacity);
     notifyListeners();
   }
 

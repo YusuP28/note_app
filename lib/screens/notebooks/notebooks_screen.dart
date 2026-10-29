@@ -65,7 +65,13 @@ class NotebooksScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.watch<NotebookProvider>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Notebook')),
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        title: const Text('Notebook'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _addOrEdit(context),
         child: const Icon(Icons.create_new_folder_outlined),

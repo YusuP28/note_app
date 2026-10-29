@@ -180,7 +180,13 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Google Drive Backup')),
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        title: const Text('Google Drive Backup'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
