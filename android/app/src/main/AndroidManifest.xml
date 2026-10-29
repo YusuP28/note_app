@@ -17,8 +17,8 @@
     <application
         android:label="Catatanku"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher"
+        android:icon="@mipmap/launcher_icon"
+        android:roundIcon="@mipmap/launcher_icon"
         android:requestLegacyExternalStorage="true">
 
         <activity

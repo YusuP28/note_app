@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@mipmap/ic_launcher_background"/>
-    <!-- Foreground di-inset simetris agar artwork tepat di tengah safe zone. -->
-    <foreground android:drawable="@drawable/ic_launcher_foreground_inset"/>
-</adaptive-icon>
