@@ -726,11 +726,12 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
                   ),
                 ),
-                Divider(color: dividerColor),
-                // Toolbar dengan padding vertikal agar ikon tidak mepet ke divider
+                // Garis atas (symmetris dengan garis bawah)
+                Divider(height: 1, thickness: 0.5, color: dividerColor),
+                // Toolbar dibungkus Container dengan padding vertikal simetris (atas=bawah=8)
                 Container(
                   color: editorBg,
-                  padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 8.0),
+                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
                   child: quill.QuillSimpleToolbar(
                     configurations: quill.QuillSimpleToolbarConfigurations(
                       controller: _contentCtrl,
@@ -759,6 +760,7 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
                     ),
                   ),
                 ),
+                // Garis bawah (symmetris dengan garis atas)
                 Divider(height: 1, thickness: 0.5, color: dividerColor),
                 Expanded(
                   child: Padding(
