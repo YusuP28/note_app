@@ -83,6 +83,19 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
     if (!widget.readOnly) _restoreDraft();
   }
 
+  /// Hapus semua highlight kuning (BackgroundAttribute) dari dokumen
+  void clearSearchHighlight() {
+    if (_highlightPositions.isEmpty) return;
+    final query = _searchQuery?.toLowerCase() ?? '';
+    if (query.isEmpty) return;
+    for (final pos in _highlightPositions) {
+      // Hapus background attribute di posisi tersebut
+      _contentCtrl.formatText(pos, query.length, quill.Attribute.background);
+    }
+    _highlightPositions.clear();
+    _searchQuery = null;
+  }
+
   /// Terapkan highlight kuning pada semua kemunculan _searchQuery
   void _applySearchHighlight() {
     if (_searchQuery == null || _searchQuery!.isEmpty) return;
@@ -213,6 +226,10 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
 
   void _onDraftChange() {
     if (widget.readOnly) return;
+    // Hapus highlight saat user mulai mengetik
+    if (_highlightPositions.isNotEmpty) {
+      clearSearchHighlight();
+    }
     _dirty = true;
     _draftTimer?.cancel();
     _draftTimer = Timer(const Duration(seconds: 3), _saveDraft);
@@ -238,6 +255,9 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
     if (_saving) return false;
     _saving = true;
     _draftTimer?.cancel();
+
+    // Hapus highlight sebelum menyimpan agar tidak permanen
+    clearSearchHighlight();
 
     final p = context.read<NoteProvider>();
     final title = _titleCtrl.text.trim();
@@ -740,16 +760,24 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: quill.QuillEditor.basic(
-                      focusNode: _focusNode,
-                      scrollController: _scrollCtrl,
-                      configurations: quill.QuillEditorConfigurations(
-                        controller: _contentCtrl,
-                        placeholder: widget.readOnly ? '' : 'Tulis catatan di sini...',
-                        padding: EdgeInsets.zero,
-                        autoFocus: false,
-                        expands: true,
-                        embedBuilders: [LocalImageEmbedBuilder()],
+                    child: GestureDetector(
+                      onTap: () {
+                        // Hapus highlight saat user menyentuh editor
+                        if (_highlightPositions.isNotEmpty) {
+                          clearSearchHighlight();
+                        }
+                      },
+                      child: quill.QuillEditor.basic(
+                        focusNode: _focusNode,
+                        scrollController: _scrollCtrl,
+                        configurations: quill.QuillEditorConfigurations(
+                          controller: _contentCtrl,
+                          placeholder: widget.readOnly ? '' : 'Tulis catatan di sini...',
+                          padding: EdgeInsets.zero,
+                          autoFocus: false,
+                          expands: true,
+                          embedBuilders: [LocalImageEmbedBuilder()],
+                        ),
                       ),
                     ),
                   ),
