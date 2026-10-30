@@ -104,7 +104,7 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
       for (final pos in _highlightPositions) {
         _contentCtrl.formatText(pos, query.length,
             quill.BackgroundAttribute(yellowHex),
-            changeSource: quill.ChangeSource.local);
+            source: quill.ChangeSource.local);
       }
       // Scroll ke kemunculan pertama
       _scrollToHighlight(0);
