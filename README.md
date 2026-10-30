@@ -21,7 +21,7 @@ Aplikasi catatan modern untuk Android. Offline-first, tanpa internet.
   - PIN hash SHA-256 (aman, bukan plain text)
   - Hint untuk bantuan jika lupa PIN
   - Backup code 6 digit (emergency reset)
-  - Fingerprint support (local_auth)
+  - **Fingerprint Unlock (toggle)** — aktifkan/nonaktifkan biometric di Settings
 - **Lock per catatan** - pilih catatan mana yang dikunci
   - Icon gembok di card catatan locked
   - Prompt PIN saat buka catatan terkunci
@@ -37,12 +37,14 @@ Aplikasi catatan modern untuk Android. Offline-first, tanpa internet.
   - Header style
 - Warna latar per catatan
 - Background image per catatan (opacity custom)
+- **Global Background** — wallpaper untuk seluruh aplikasi (Settings)
 - Timestamp dibuat & diubah
 - Sort: 6 opsi (terbaru/terlama diubah/dibuat, A-Z, Z-A)
 
 ### Pencarian
 - Search global di judul & isi
 - Debounce 250 ms
+- **Highlight Kuning & Auto-scroll** — kata kunci disorot saat buka catatan dari hasil cari
 
 ### Tampilan
 - Dark Mode (Ikuti Sistem / Terang / Gelap)

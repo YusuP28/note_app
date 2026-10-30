@@ -17,6 +17,26 @@ Versioning: [Semantic Versioning](https://semver.org/)
 - Urutan restore backup: notebook → tag → catatan → relasi tag → lampiran (sebelumnya catatan di-insert sebelum notebook)
 - Auto-backup, backup lokal, dan Google Drive sekarang menyertakan lampiran media
 
+---
+
+## [2.6.0] - 2026-10-30
+
+### Ditambahkan
+- **Fingerprint Unlock** — toggle di Settings untuk aktifkan/nonaktifkan biometric (local_auth)
+- **Pencarian & Highlight Kuning** — saat membuka catatan dari hasil pencarian, semua kata kunci disorot kuning; auto-scroll ke kemunculan pertama
+- **Global Background** — wallpaper untuk seluruh aplikasi (bukan per-catatan)
+- **Editor Divider Toolbar** — revisi presisi garis atas/bawah toolbar (padding simetris vertical: 8.0)
+- **Icon Launcher Baru** — aset PixelLab dengan padding otomatis 65% (foreground lebih proporsional)
+
+### Diperbaiki
+- **Highlight kuning tidak permanen** — hapus saat user mengetik, tap editor, atau save; tidak tersimpan ke database
+- **Garis toolbar terlalu mepet** — tambahkan padding vertikal 8px pada Container pembungkus QuillSimpleToolbar
+- **Build cache stale** — GH Actions selalu clean build untuk hasil konsisten
+
+### Diubah
+- Toolbar editor: hapus baris navigasi panah (←↑↓→), sisakan 1 baris toolbar utama (Undo/Redo/Font/Bold/Italic/dll)
+- Icon launcher: background putih (#FFFFFF) untuk adaptive icon agar frame biru gelap terlihat proporsional
+
 ## [2.5.1] - 2026-10-12
 
 ### Ditambahkan
