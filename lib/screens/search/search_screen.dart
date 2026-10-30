@@ -38,9 +38,10 @@ class _SearchScreenState extends State<SearchScreen> {
     if (!await assertUnlocked(context, note)) return;
     if (!mounted) return;
     try {
+      final p = context.read<NoteProvider>();
       await Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => EditScreen(note: note)),
+        MaterialPageRoute(builder: (_) => EditScreen(note: note, searchQuery: p.query)),
       );
     } catch (e) {
       debugPrint('search openNote error: $e');

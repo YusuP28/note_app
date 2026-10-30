@@ -21,7 +21,8 @@ import '../../widgets/local_image_embed.dart';
 class EditScreen extends StatefulWidget {
   final Note? note;
   final bool readOnly;
-  const EditScreen({super.key, this.note, this.readOnly = false});
+  final String? searchQuery; // Kata kunci untuk highlight
+  const EditScreen({super.key, this.note, this.readOnly = false, this.searchQuery});
 
   @override
   State<EditScreen> createState() => _EditScreenState();
@@ -41,6 +42,9 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
   String? _bgImagePath;
   double _bgOpacity = 0.3;
   Timer? _draftTimer;
+  String? _searchQuery; // Kata kunci pencarian untuk highlight
+  List<int> _highlightPositions = []; // Posisi offset dari highlight
+  int _currentHighlightIndex = 0; // Index highlight saat ini
 
   String get _draftKeyTitle => 'draft_${_working.id}_title';
   String get _draftKeyContent => 'draft_${_working.id}_content';
@@ -60,16 +64,72 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
     _bgImagePath = _working.bgImagePath;
     _bgOpacity = _working.bgOpacity;
 
+    // Simpan search query
+    _searchQuery = widget.searchQuery;
+
     // Force re-render setelah frame pertama (fix bg image kadang tidak muncul)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _bgImagePath != null) {
         setState(() {});
+      }
+      // Apply highlight jika ada search query
+      if (_searchQuery != null && _searchQuery!.isNotEmpty) {
+        _applySearchHighlight();
       }
     });
 
     _titleCtrl.addListener(_onDraftChange);
     _contentCtrl.addListener(_onDraftChange);
     if (!widget.readOnly) _restoreDraft();
+  }
+
+  /// Terapkan highlight kuning pada semua kemunculan _searchQuery
+  void _applySearchHighlight() {
+    if (_searchQuery == null || _searchQuery!.isEmpty) return;
+    final query = _searchQuery!.toLowerCase();
+    final plainText = _contentCtrl.document.toPlainText().toLowerCase();
+    _highlightPositions.clear();
+
+    int index = 0;
+    while (true) {
+      index = plainText.indexOf(query, index);
+      if (index == -1) break;
+      _highlightPositions.add(index);
+      index += query.length;
+    }
+
+    if (_highlightPositions.isNotEmpty) {
+      // Terapkan background kuning pada setiap posisi
+      for (final pos in _highlightPositions) {
+        _contentCtrl.formatText(pos, query.length,
+            const quill.Attribute(quill.Attribute.background.key, Colors.yellow),
+            quill.ChangeSource.local);
+      }
+      // Scroll ke kemunculan pertama
+      _scrollToHighlight(0);
+    }
+  }
+
+  /// Scroll ke highlight tertentu
+  void _scrollToHighlight(int index) {
+    if (index < 0 || index >= _highlightPositions.length) return;
+    _currentHighlightIndex = index;
+    final offset = _highlightPositions[index];
+    // Gunakan setSelection untuk scroll ke posisi
+    _contentCtrl.updateSelection(
+      TextSelection.collapsed(offset: offset),
+      quill.ChangeSource.local,
+    );
+    // Scroll controller juga
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          offset.toDouble() * 20.0, // Estimasi tinggi per karakter
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   quill.QuillController _buildQuillController(String content) {
@@ -650,66 +710,6 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
                   ),
                 ),
                 Divider(color: dividerColor),
-                // ═══ Arrow Keys Navigation Bar ═══
-                Container(
-                  color: editorBg,
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back, size: 20),
-                        tooltip: 'Kiri',
-                        padding: const EdgeInsets.all(6),
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                        onPressed: () => _moveCursor(-1),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.arrow_upward, size: 20),
-                        tooltip: 'Atas',
-                        padding: const EdgeInsets.all(6),
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                        onPressed: () => _moveLine(-1),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.arrow_downward, size: 20),
-                        tooltip: 'Bawah',
-                        padding: const EdgeInsets.all(6),
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                        onPressed: () => _moveLine(1),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.arrow_forward, size: 20),
-                        tooltip: 'Kanan',
-                        padding: const EdgeInsets.all(6),
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                        onPressed: () => _moveCursor(1),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        width: 1,
-                        height: 20,
-                        color: dividerColor,
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.vertical_align_top, size: 20),
-                        tooltip: 'Awal baris',
-                        padding: const EdgeInsets.all(6),
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                        onPressed: _moveHome,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.vertical_align_bottom, size: 20),
-                        tooltip: 'Akhir baris',
-                        padding: const EdgeInsets.all(6),
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                        onPressed: _moveEnd,
-                      ),
-                    ],
-                  ),
-                ),
-                Divider(height: 1, color: dividerColor),
                 quill.QuillSimpleToolbar(
                   configurations: quill.QuillSimpleToolbarConfigurations(
                     controller: _contentCtrl,
