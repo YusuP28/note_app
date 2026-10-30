@@ -103,7 +103,7 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
       const yellowHex = '#FFFF00';
       for (final pos in _highlightPositions) {
         _contentCtrl.formatText(pos, query.length,
-            quill.Attribute.background.copyWith(value: yellowHex),
+            quill.Attribute(quill.Attribute.background.key, yellowHex, 'inline'),
             quill.ChangeSource.local);
       }
       // Scroll ke kemunculan pertama
