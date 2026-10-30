@@ -167,6 +167,8 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    // Hapus highlight agar tidak ikut tersimpan di edge case (force close, crash)
+    clearSearchHighlight();
     WidgetsBinding.instance.removeObserver(this);
     _draftTimer?.cancel();
     _titleCtrl.dispose();
@@ -226,10 +228,6 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
 
   void _onDraftChange() {
     if (widget.readOnly) return;
-    // Hapus highlight saat user mulai mengetik
-    if (_highlightPositions.isNotEmpty) {
-      clearSearchHighlight();
-    }
     _dirty = true;
     _draftTimer?.cancel();
     _draftTimer = Timer(const Duration(seconds: 3), _saveDraft);
