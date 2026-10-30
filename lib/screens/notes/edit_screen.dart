@@ -100,9 +100,10 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
 
     if (_highlightPositions.isNotEmpty) {
       // Terapkan background kuning pada setiap posisi
+      const yellowHex = '#FFFF00';
       for (final pos in _highlightPositions) {
         _contentCtrl.formatText(pos, query.length,
-            const quill.Attribute(quill.Attribute.background.key, Colors.yellow),
+            quill.Attribute(quill.Attribute.background.key, yellowHex),
             quill.ChangeSource.local);
       }
       // Scroll ke kemunculan pertama
