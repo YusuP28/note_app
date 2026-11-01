@@ -54,6 +54,16 @@ class SettingsScreen extends StatelessWidget {
             ),
             onTap: () => _showGlobalBackgroundSheet(context, settings),
           ),
+          ListTile(
+            leading: const Icon(Icons.menu_outlined),
+            title: const Text('Background Sidebar (Drawer)'),
+            subtitle: Text(
+              settings.hasDrawerBackground
+                  ? 'Aktif • transparansi ${(settings.drawerBgOpacity * 100).round()}%'
+                  : 'Tidak aktif',
+            ),
+            onTap: () => _showDrawerBackgroundSheet(context, settings),
+          ),
 
           const Divider(),
 
@@ -770,6 +780,132 @@ onTap: () async {
                       onChanged: (v) {
                         setLocal(() => value = v);
                         settings.setGlobalBackgroundOpacity(v);
+                      },
+                    ),
+                  ),
+                  const Icon(Icons.brightness_high, size: 18),
+                ],
+              ),
+              Center(
+                child: Text(
+                  '${(value * 100).round()}%',
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Semakin kecil % → background lebih transparan',
+                style: TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showDrawerBackgroundSheet(
+      BuildContext context, SettingsProvider settings) async {
+    final hasBg = settings.hasDrawerBackground;
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Background Sidebar (Drawer)',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Pilih Gambar'),
+              subtitle: const Text('Gunakan gambar dari galeri/kamera'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickDrawerBackground(context, settings);
+              },
+            ),
+            if (hasBg) ...[
+              ListTile(
+                leading: const Icon(Icons.opacity),
+                title: const Text('Atur Transparansi'),
+                subtitle: Text(
+                  '${(settings.drawerBgOpacity * 100).round()}%',
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showDrawerBackgroundOpacity(context, settings);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('Hapus Gambar'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await settings.setDrawerBackground(null);
+                },
+              ),
+            ],
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickDrawerBackground(
+      BuildContext context, SettingsProvider settings) async {
+    final source = await showImageSourceSheet(context);
+    if (source == null) return;
+
+    String? path;
+    if (source == 'gallery') {
+      final files = await ImageAttachmentService().pickFromGallery();
+      if (files.isNotEmpty) path = files.first;
+    } else {
+      path = await ImageAttachmentService().pickFromCamera();
+    }
+    if (path != null) {
+      await settings.setDrawerBackground(path);
+    }
+  }
+
+  void _showDrawerBackgroundOpacity(
+      BuildContext context, SettingsProvider settings) {
+    var value = settings.drawerBgOpacity;
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Transparansi Background Sidebar',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.brightness_low, size: 18),
+                  Expanded(
+                    child: Slider(
+                      value: value,
+                      min: 0.0,
+                      max: 1.0,
+                      divisions: 20,
+                      label: '${(value * 100).round()}%',
+                      onChanged: (v) {
+                        setLocal(() => value = v);
+                        settings.setDrawerBackgroundOpacity(v);
                       },
                     ),
                   ),

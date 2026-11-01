@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -463,45 +464,70 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
   Widget _buildDrawer(BuildContext context, NoteProvider p) {
+    final settings = Provider.of<SettingsProvider>(context, listen: false);
+    final hasDrawerBg = settings.hasDrawerBackground;
+    final drawerBgPath = settings.drawerBgPath;
+    final drawerBgOpacity = settings.drawerBgOpacity;
+
     return Drawer(
+      backgroundColor: Colors.transparent,
       child: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Icon(Icons.note_alt_outlined,
-                      color: Theme.of(context).colorScheme.primary, size: 28),
-                  const SizedBox(width: 10),
-                  const Text('Catatanku',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                ],
+            // Background Image Layer
+            if (hasDrawerBg && drawerBgPath != null)
+              Positioned.fill(
+                child: Opacity(
+                  opacity: drawerBgOpacity,
+                  child: Image.file(
+                    File(drawerBgPath),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
+                ),
               ),
-            ),
-            const Divider(height: 1),
-            _tile(Icons.notes, 'Semua', NoteFilter.all, p),
-            _tile(Icons.push_pin_outlined, 'Disematkan', NoteFilter.pinned, p),
-            ListTile(
-              leading: const Icon(Icons.folder_outlined),
-              title: const Text('Notebook'),
-              onTap: () => _openDrawerItem(const NotebooksScreen()),
-            ),
-            ListTile(
-              leading: const Icon(Icons.label_outline),
-              title: const Text('Tag'),
-              onTap: () => _openDrawerItem(const TagsScreen()),
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.archive_outlined),
-              title: const Text('Arsip'),
-              onTap: () => _openDrawerItem(const ArchiveScreen()),
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline),
-              title: const Text('Sampah'),
-              onTap: () => _openDrawerItem(const TrashScreen()),
+            // Main Drawer Content
+            Column(
+              children: [
+                Container(
+                  color: Colors.transparent,
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Icon(Icons.note_alt_outlined,
+                          color: Theme.of(context).colorScheme.primary, size: 28),
+                      const SizedBox(width: 10),
+                      const Text('Catatanku',
+                          style:
+                              TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                _tile(Icons.notes, 'Semua', NoteFilter.all, p),
+                _tile(Icons.push_pin_outlined, 'Disematkan', NoteFilter.pinned, p),
+                ListTile(
+                  leading: const Icon(Icons.folder_outlined),
+                  title: const Text('Notebook'),
+                  onTap: () => _openDrawerItem(const NotebooksScreen()),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.label_outline),
+                  title: const Text('Tag'),
+                  onTap: () => _openDrawerItem(const TagsScreen()),
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.archive_outlined),
+                  title: const Text('Arsip'),
+                  onTap: () => _openDrawerItem(const ArchiveScreen()),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline),
+                  title: const Text('Sampah'),
+                  onTap: () => _openDrawerItem(const TrashScreen()),
+                ),
+              ],
             ),
           ],
         ),

@@ -25,6 +25,8 @@ class SettingsProvider extends ChangeNotifier {
   static const _kUseOriginalQuality = 'use_original_quality';
   static const _kGlobalBgPath = 'global_bg_path';
   static const _kGlobalBgOpacity = 'global_bg_opacity';
+  static const _kDrawerBgPath = 'drawer_bg_path';
+  static const _kDrawerBgOpacity = 'drawer_bg_opacity';
 
   SortBy _sort = SortBy.updatedDesc;
   ViewMode _view = ViewMode.list;
@@ -34,6 +36,8 @@ class SettingsProvider extends ChangeNotifier {
   bool _useOriginalQuality = false;
   String? _globalBgPath;
   double _globalBgOpacity = 0.3;
+  String? _drawerBgPath;
+  double _drawerBgOpacity = 0.5;
 
   SortBy get sort => _sort;
   ViewMode get view => _view;
@@ -48,6 +52,10 @@ class SettingsProvider extends ChangeNotifier {
   double get globalBgOpacity => _globalBgOpacity;
   bool get hasGlobalBackground =>
       _globalBgPath != null && _globalBgPath!.isNotEmpty;
+  String? get drawerBgPath => _drawerBgPath;
+  double get drawerBgOpacity => _drawerBgOpacity;
+  bool get hasDrawerBackground =>
+      _drawerBgPath != null && _drawerBgPath!.isNotEmpty;
 
   // Alias untuk kompatibilitas (kalau ada yang pakai isGrid)
   bool get isGrid => _view == ViewMode.grid;
@@ -74,6 +82,9 @@ class SettingsProvider extends ChangeNotifier {
     _globalBgPath = p.getString(_kGlobalBgPath);
     _globalBgOpacity =
         (p.getDouble(_kGlobalBgOpacity) ?? 0.3).clamp(0.0, 1.0).toDouble();
+    _drawerBgPath = p.getString(_kDrawerBgPath);
+    _drawerBgOpacity =
+        (p.getDouble(_kDrawerBgOpacity) ?? 0.5).clamp(0.0, 1.0).toDouble();
 
     notifyListeners();
   }
@@ -125,6 +136,24 @@ class SettingsProvider extends ChangeNotifier {
     _globalBgOpacity = v.clamp(0.0, 1.0).toDouble();
     final p = await SharedPreferences.getInstance();
     await p.setDouble(_kGlobalBgOpacity, _globalBgOpacity);
+    notifyListeners();
+  }
+
+  Future<void> setDrawerBackground(String? path) async {
+    _drawerBgPath = (path == null || path.isEmpty) ? null : path;
+    final p = await SharedPreferences.getInstance();
+    if (_drawerBgPath == null) {
+      await p.remove(_kDrawerBgPath);
+    } else {
+      await p.setString(_kDrawerBgPath, _drawerBgPath!);
+    }
+    notifyListeners();
+  }
+
+  Future<void> setDrawerBackgroundOpacity(double v) async {
+    _drawerBgOpacity = v.clamp(0.0, 1.0).toDouble();
+    final p = await SharedPreferences.getInstance();
+    await p.setDouble(_kDrawerBgOpacity, _drawerBgOpacity);
     notifyListeners();
   }
 
