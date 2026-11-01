@@ -672,11 +672,26 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
                   ),
                 ),
               ),
-            // Scrim Overlay — tipis (opacity 0.2) agar teks editor tetap nyaman dibaca
+            // Top Gradient Overlay — hanya menutupi area judul & toolbar (~180px dari atas)
             if (_bgImagePath != null && _bgImagePath!.isNotEmpty)
-              Positioned.fill(
-                child: Container(
-                  color: Colors.black.withOpacity(0.2),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 180,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.6),
+                        Colors.black.withOpacity(0.35),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.5, 1.0],
+                    ),
+                  ),
                 ),
               ),
             // Main content (dengan bg semi-transparan)

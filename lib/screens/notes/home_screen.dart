@@ -513,11 +513,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-            // Dark Overlay (Scrim) - gelapkan background agar teks terbaca
+            // Dark Overlay (Scrim) - gelapkan background agar teks terbaca (opacity 0.25 untuk gambar lebih cerah)
             if (hasDrawerBg && drawerBgPath != null)
               Positioned.fill(
                 child: Container(
-                  color: Colors.black.withOpacity(0.35),
+                  color: Colors.black.withOpacity(0.25),
                 ),
               ),
             // Main Drawer Content

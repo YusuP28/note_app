@@ -48,7 +48,7 @@ class GlobalBackground extends StatelessWidget {
         if (path != null && path.isNotEmpty)
           Positioned.fill(
             child: Container(
-              color: Colors.black.withOpacity(0.35),
+              color: Colors.black.withOpacity(0.25),
             ),
           ),
         child,
