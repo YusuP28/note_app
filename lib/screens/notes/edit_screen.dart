@@ -672,6 +672,13 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
                   ),
                 ),
               ),
+            // Scrim Overlay — tipis (opacity 0.2) agar teks editor tetap nyaman dibaca
+            if (_bgImagePath != null && _bgImagePath!.isNotEmpty)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withOpacity(0.2),
+                ),
+              ),
             // Main content (dengan bg semi-transparan)
             // Hanya area ini yang turun/bergeser mengikuti keyboard.
             Positioned.fill(

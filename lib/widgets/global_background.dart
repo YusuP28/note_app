@@ -44,6 +44,13 @@ class GlobalBackground extends StatelessWidget {
               ),
             ),
           ),
+        // Scrim Overlay — gelapkan background global agar teks di atasnya terbaca
+        if (path != null && path.isNotEmpty)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.35),
+            ),
+          ),
         child,
       ],
     );
