@@ -13,6 +13,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterFragmentActivity() {
 
     private val CHANNEL = "note_app/alarm"
+    private val GOOGLE_SIGN_IN_CHANNEL = "com.yusup28.note_app/google_sign_in"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -86,6 +87,19 @@ class MainActivity : FlutterFragmentActivity() {
                         }
                         sendBroadcast(intent)
                         result.success(true)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+
+        // Channel untuk Google Sign-In serverClientId
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, GOOGLE_SIGN_IN_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getServerClientId" -> {
+                        // Ambil dari BuildConfig (diisi via build.gradle dari google-services.json/env)
+                        val clientId = BuildConfig.GOOGLE_SERVER_CLIENT_ID
+                        result.success(clientId)
                     }
                     else -> result.notImplemented()
                 }

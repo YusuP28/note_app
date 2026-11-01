@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
@@ -8,11 +9,44 @@ class GoogleDriveService {
   factory GoogleDriveService() => _i;
   GoogleDriveService._();
 
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: [
-      drive.DriveApi.driveAppdataScope, // appDataFolder (tersembunyi)
-    ],
-  );
+  // serverClientId diambil dari BuildConfig Android (via google-services.json)
+  // Format: xxx.apps.googleusercontent.com
+  static const MethodChannel _channel = MethodChannel('com.yusup28.note_app/google_sign_in');
+  
+  String? _serverClientId;
+  
+  Future<String> _getServerClientId() async {
+    if (_serverClientId != null) return _serverClientId!;
+    try {
+      final String clientId = await _channel.invokeMethod('getServerClientId');
+      if (clientId.isNotEmpty && clientId != 'YOUR_SERVER_CLIENT_ID.apps.googleusercontent.com') {
+        _serverClientId = clientId;
+        return _serverClientId!;
+      }
+    } catch (e) {
+      debugPrint('Gagal ambil serverClientId dari native: $e');
+    }
+    // Fallback ke environment variable (untuk CI/testing)
+    _serverClientId = const String.fromEnvironment(
+      'GOOGLE_SERVER_CLIENT_ID',
+      defaultValue: 'YOUR_SERVER_CLIENT_ID.apps.googleusercontent.com',
+    );
+    return _serverClientId!;
+  }
+
+  GoogleSignIn? _googleSignIn;
+  
+  Future<GoogleSignIn> get _signInInstance async {
+    if (_googleSignIn != null) return _googleSignIn!;
+    final clientId = await _getServerClientId();
+    _googleSignIn = GoogleSignIn(
+      scopes: [
+        drive.DriveApi.driveAppdataScope,
+      ],
+      serverClientId: clientId,
+    );
+    return _googleSignIn!;
+  }
 
   GoogleSignInAccount? _currentUser;
   GoogleSignInAccount? get currentUser => _currentUser;
@@ -21,15 +55,16 @@ class GoogleDriveService {
   /// Login Google
   Future<GoogleSignInAccount?> signIn() async {
     try {
+      final signIn = await _signInInstance;
       // Coba sign in
-      final account = await _googleSignIn.signIn();
+      final account = await signIn.signIn();
       if (account != null) {
         _currentUser = account;
         debugPrint('Google signIn OK: ${account.email}');
         return account;
       }
       // Kadang user batal, coba silent dulu
-      final silent = await _googleSignIn.signInSilently();
+      final silent = await signIn.signInSilently();
       if (silent != null) {
         _currentUser = silent;
         debugPrint('Google signIn OK (silent fallback): ${silent.email}');
@@ -45,8 +80,10 @@ class GoogleDriveService {
   /// Logout
   Future<void> signOut() async {
     try {
-      await _googleSignIn.signOut();
+      final signIn = await _signInInstance;
+      await signIn.signOut();
       _currentUser = null;
+      _googleSignIn = null; // Reset untuk ambil clientId baru kalau berubah
       debugPrint('Google signOut OK');
     } catch (e) {
       debugPrint('Google signOut error: $e');
@@ -56,7 +93,8 @@ class GoogleDriveService {
   /// Auto login kalau sudah pernah
   Future<GoogleSignInAccount?> signInSilently() async {
     try {
-      final account = await _googleSignIn.signInSilently();
+      final signIn = await _signInInstance;
+      final account = await signIn.signInSilently();
       if (account != null) {
         _currentUser = account;
         debugPrint('Google silent signIn OK: ${account.email}');

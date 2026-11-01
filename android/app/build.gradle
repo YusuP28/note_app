@@ -2,6 +2,7 @@ plugins {
     id "com.android.application"
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
+    id "com.google.gms.google-services"
 }
 
 def localProperties = new Properties()
@@ -30,6 +31,9 @@ def envKeyPassword = System.getenv("KEY_PASSWORD") ?: keystoreProperties['keyPas
 def flutterVersionCode = localProperties.getProperty("flutter.versionCode") ?: "1"
 def flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "1.0"
 
+// Google Sign-In serverClientId (dari google-services.json -> oauth_client type 3 / web)
+def googleServerClientId = System.getenv("GOOGLE_SERVER_CLIENT_ID") ?: "YOUR_SERVER_CLIENT_ID.apps.googleusercontent.com"
+
 android {
     namespace = "com.yusup28.note_app"
     compileSdk = 34
@@ -52,6 +56,9 @@ android {
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
         multiDexEnabled = true
+
+        // Pass serverClientId ke Dart via BuildConfig
+        buildConfigField "String", "GOOGLE_SERVER_CLIENT_ID", "\"${googleServerClientId}\""
     }
 
     signingConfigs {
