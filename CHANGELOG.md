@@ -19,6 +19,19 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [2.6.1] - 2026-11-01
+
+### Ditambahkan
+- **Kustomisasi background Sidebar (Drawer)** — gambar & transparansi khusus untuk area navigasi
+- **Pencarian dalam Catatan (Highlight)** — highlight kuning pada kata kunci di dalam catatan
+
+### Diperbaiki
+- **Perbaikan bug highlight kuning** yang tersimpan permanen
+- **Penyesuaian kontras teks (Scrim overlay)** di semua area background kustom
+- **Perbaikan garis toolbar** dan ukuran icon launcher
+
+---
+
 ## [2.6.0] - 2026-10-30
 
 ### Ditambahkan

@@ -38,6 +38,7 @@ Aplikasi catatan modern untuk Android. Offline-first, tanpa internet.
 - Warna latar per catatan
 - Background image per catatan (opacity custom)
 - **Global Background** — wallpaper untuk seluruh aplikasi (Settings)
+- **Kustomisasi Background Sidebar (Drawer)** — gambar & transparansi khusus untuk navigasi
 - Timestamp dibuat & diubah
 - Sort: 6 opsi (terbaru/terlama diubah/dibuat, A-Z, Z-A)
 
@@ -45,6 +46,7 @@ Aplikasi catatan modern untuk Android. Offline-first, tanpa internet.
 - Search global di judul & isi
 - Debounce 250 ms
 - **Highlight Kuning & Auto-scroll** — kata kunci disorot saat buka catatan dari hasil cari
+- **Pencarian dalam Catatan (Highlight)** — temukan teks di dalam catatan dengan highlight kuning
 
 ### Tampilan
 - Dark Mode (Ikuti Sistem / Terang / Gelap)
