@@ -469,6 +469,33 @@ class _HomeScreenState extends State<HomeScreen> {
     final drawerBgPath = settings.drawerBgPath;
     final drawerBgOpacity = settings.drawerBgOpacity;
 
+    // Warna teks & ikon putih dengan shadow untuk kontras di atas gambar
+    final textStyle = TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w500,
+      color: Colors.white,
+      shadows: [
+        Shadow(
+          color: Colors.black.withOpacity(0.8),
+          offset: const Offset(0, 1),
+          blurRadius: 3,
+        ),
+      ],
+    );
+    final headerStyle = TextStyle(
+      fontSize: 20,
+      fontWeight: FontWeight.bold,
+      color: Colors.white,
+      shadows: [
+        Shadow(
+          color: Colors.black.withOpacity(0.8),
+          offset: const Offset(0, 1),
+          blurRadius: 3,
+        ),
+      ],
+    );
+    final iconColor = Colors.white;
+
     return Drawer(
       backgroundColor: Colors.transparent,
       child: SafeArea(
@@ -486,6 +513,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
+            // Dark Overlay (Scrim) - gelapkan background agar teks terbaca
+            if (hasDrawerBg && drawerBgPath != null)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withOpacity(0.35),
+                ),
+              ),
             // Main Drawer Content
             Column(
               children: [
@@ -495,36 +529,34 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     children: [
                       Icon(Icons.note_alt_outlined,
-                          color: Theme.of(context).colorScheme.primary, size: 28),
+                          color: iconColor, size: 28),
                       const SizedBox(width: 10),
-                      const Text('Catatanku',
-                          style:
-                              TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      Text('Catatanku', style: headerStyle),
                     ],
                   ),
                 ),
-                const Divider(height: 1),
-                _tile(Icons.notes, 'Semua', NoteFilter.all, p),
-                _tile(Icons.push_pin_outlined, 'Disematkan', NoteFilter.pinned, p),
+                Divider(height: 1, color: Colors.white24),
+                _tile(Icons.notes, 'Semua', NoteFilter.all, p, textStyle, iconColor),
+                _tile(Icons.push_pin_outlined, 'Disematkan', NoteFilter.pinned, p, textStyle, iconColor),
                 ListTile(
-                  leading: const Icon(Icons.folder_outlined),
-                  title: const Text('Notebook'),
+                  leading: Icon(Icons.folder_outlined, color: iconColor),
+                  title: Text('Notebook', style: textStyle),
                   onTap: () => _openDrawerItem(const NotebooksScreen()),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.label_outline),
-                  title: const Text('Tag'),
+                  leading: Icon(Icons.label_outline, color: iconColor),
+                  title: Text('Tag', style: textStyle),
                   onTap: () => _openDrawerItem(const TagsScreen()),
                 ),
-                const Divider(),
+                Divider(color: Colors.white24),
                 ListTile(
-                  leading: const Icon(Icons.archive_outlined),
-                  title: const Text('Arsip'),
+                  leading: Icon(Icons.archive_outlined, color: iconColor),
+                  title: Text('Arsip', style: textStyle),
                   onTap: () => _openDrawerItem(const ArchiveScreen()),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.delete_outline),
-                  title: const Text('Sampah'),
+                  leading: Icon(Icons.delete_outline, color: iconColor),
+                  title: Text('Sampah', style: textStyle),
                   onTap: () => _openDrawerItem(const TrashScreen()),
                 ),
               ],
@@ -535,13 +567,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _tile(IconData icon, String text, NoteFilter f, NoteProvider p) {
+  Widget _tile(IconData icon, String text, NoteFilter f, NoteProvider p,
+      TextStyle textStyle, Color iconColor) {
     final selected = p.filter == f;
     return ListTile(
-      leading: Icon(icon),
-      title: Text(text),
+      leading: Icon(icon, color: iconColor),
+      title: Text(text, style: textStyle),
       selected: selected,
-      selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
+      selectedTileColor: Colors.white.withOpacity(0.15),
       onTap: () {
         p.setNotebookFilter(null);
         p.setTagFilter(null);
