@@ -131,7 +131,7 @@ class GoogleDriveService {
       final list = await api.files.list(
         spaces: 'appDataFolder',
         q: "name='$fileName'",
-        fields: 'files(id, name)',
+        `$fields`: 'files(id, name)',
       );
 
       final media = drive.Media(
@@ -171,7 +171,7 @@ class GoogleDriveService {
       final list = await api.files.list(
         spaces: 'appDataFolder',
         q: "name='$fileName'",
-        fields: 'files(id, name, modifiedTime)',
+        `$fields`: 'files(id, name, modifiedTime)',
       );
 
       if (list.files == null || list.files!.isEmpty) {
@@ -206,7 +206,7 @@ class GoogleDriveService {
         spaces: 'appDataFolder',
         q: "name contains 'note_app_backup_'",
         orderBy: 'createdTime desc',
-        fields: 'files(id, name, createdTime)',
+        `$fields`: 'files(id, name, createdTime)',
       );
 
       final files = list.files ?? [];
@@ -241,7 +241,7 @@ class GoogleDriveService {
       final api = await _getDriveApi();
       final list = await api.files.list(
         spaces: 'appDataFolder',
-        fields: 'files(id, name, modifiedTime, size)',
+        `$fields`: 'files(id, name, modifiedTime, size)',
       );
       return (list.files ?? [])
           .map((f) => {
