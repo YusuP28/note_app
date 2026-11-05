@@ -10,7 +10,7 @@ on:
       build_type:
         description: 'Build type'
         required: true
-        default: 'release-split'
+        default: 'debug'
         type: choice
         options:
           - debug
