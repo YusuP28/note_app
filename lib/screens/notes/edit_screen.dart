@@ -188,6 +188,11 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _restoreDraft() async {
+    // Catatan terkunci tidak boleh meninggalkan draft plaintext.
+    if (_working.isLocked) {
+      await _clearDraft();
+      return;
+    }
     final p = await SharedPreferences.getInstance();
     final hasTitle = p.containsKey(_draftKeyTitle);
     final hasContent = p.containsKey(_draftKeyContent);
@@ -234,7 +239,7 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _saveDraft() async {
-    if (widget.readOnly || !_dirty) return;
+    if (widget.readOnly || _working.isLocked || !_dirty) return;
     final p = await SharedPreferences.getInstance();
     await p.setString(_draftKeyTitle, _titleCtrl.text);
     await p.setString(_draftKeyContent, _deltaJson());

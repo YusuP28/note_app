@@ -154,7 +154,13 @@ Future<bool> _verifyIdentity(
 
   final valid = await lock.verifyPin(result);
   if (!valid && context.mounted) {
-    _snack(context, 'PIN salah');
+    final remain = await lock.lockoutRemainingSeconds();
+    _snack(
+      context,
+      remain > 0
+          ? 'Terlalu banyak percobaan. Tunggu $remain detik.'
+          : 'PIN salah',
+    );
   }
   return valid;
   } catch (e) {
@@ -220,12 +226,44 @@ Future<bool> _promptBackupCode(BuildContext context, LockService lock) async {
 
   if (ok != true) return false;
 
-  final success = await lock.resetWithBackupCode(code, newPin);
+  final newCode = await lock.resetWithBackupCode(code, newPin);
   if (!context.mounted) return false;
-  _snack(
-    context,
-    success ? 'PIN berhasil direset' : 'Backup code salah',
+  if (newCode == null) {
+    _snack(context, 'Backup code salah');
+    return false;
+  }
+
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Backup Code Baru'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Simpan kode ini. Kode lama sudah tidak berlaku.'),
+          const SizedBox(height: 12),
+          SelectableText(
+            newCode,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 4,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('OK'),
+        ),
+      ],
+    ),
   );
+  if (context.mounted) {
+    _snack(context, 'PIN berhasil direset');
+  }
   return false;
 }
 

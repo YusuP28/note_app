@@ -563,9 +563,16 @@ onTap: () async {
     final lock = LockService();
     final valid = await lock.verifyPin(oldCtrl.text.trim());
     if (!valid) {
+      final remain = await lock.lockoutRemainingSeconds();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PIN lama salah')),
+          SnackBar(
+            content: Text(
+              remain > 0
+                  ? 'Terlalu banyak percobaan. Tunggu $remain detik.'
+                  : 'PIN lama salah',
+            ),
+          ),
         );
       }
       return;
@@ -617,11 +624,19 @@ onTap: () async {
     );
     if (ok != true) return;
 
-    final valid = await LockService().verifyPin(ctrl.text.trim());
+    final lock = LockService();
+    final valid = await lock.verifyPin(ctrl.text.trim());
     if (!valid) {
+      final remain = await lock.lockoutRemainingSeconds();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PIN salah')),
+          SnackBar(
+            content: Text(
+              remain > 0
+                  ? 'Terlalu banyak percobaan. Tunggu $remain detik.'
+                  : 'PIN salah',
+            ),
+          ),
         );
       }
       return;
