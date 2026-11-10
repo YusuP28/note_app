@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:note_app_core/note_app_core.dart';
 import 'package:provider/provider.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -228,12 +229,8 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Text('Urutkan berdasarkan',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
-            _sortTile(ctx, 'Terbaru diubah', SortBy.updatedDesc, s.sort),
-            _sortTile(ctx, 'Terlama diubah', SortBy.updatedAsc, s.sort),
-            _sortTile(ctx, 'Terbaru dibuat', SortBy.createdDesc, s.sort),
-            _sortTile(ctx, 'Terlama dibuat', SortBy.createdAsc, s.sort),
-            _sortTile(ctx, 'Judul A-Z', SortBy.titleAsc, s.sort),
-            _sortTile(ctx, 'Judul Z-A', SortBy.titleDesc, s.sort),
+            for (final option in SortBy.values)
+              _sortTile(ctx, option.label, option, s.sort),
           ],
         ),
       ),

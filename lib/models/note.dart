@@ -1,5 +1,8 @@
-class Note {
+import 'package:note_app_core/note_app_core.dart';
+
+class Note implements NoteLike {
   final String id;
+  @override
   String title;
   String content; // sekarang = Quill Delta JSON
   String plainText; // text tanpa format (untuk search & preview)
@@ -15,7 +18,9 @@ class Note {
   String? bgImagePath;
   double bgOpacity; // 0.0 - 1.0
   int sortOrder;
+  @override
   final DateTime createdAt;
+  @override
   DateTime updatedAt;
   List<String> tagIds;
 

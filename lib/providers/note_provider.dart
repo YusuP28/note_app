@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
+import 'package:note_app_core/note_app_core.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 import '../models/note.dart';
 import '../services/database_service.dart';
 import '../services/attachment_service.dart';
 import '../services/alarm_service.dart';
-import 'settings_provider.dart';
 
 enum NoteFilter { all, pinned, archived, trashed }
 
@@ -163,22 +163,7 @@ class NoteProvider extends ChangeNotifier {
     }
   }
 
-  int _cmp(Note a, Note b) {
-    switch (_sortBy) {
-      case SortBy.updatedDesc:
-        return b.updatedAt.compareTo(a.updatedAt);
-      case SortBy.updatedAsc:
-        return a.updatedAt.compareTo(b.updatedAt);
-      case SortBy.createdDesc:
-        return b.createdAt.compareTo(a.createdAt);
-      case SortBy.createdAsc:
-        return a.createdAt.compareTo(b.createdAt);
-      case SortBy.titleAsc:
-        return a.title.toLowerCase().compareTo(b.title.toLowerCase());
-      case SortBy.titleDesc:
-        return b.title.toLowerCase().compareTo(a.title.toLowerCase());
-    }
-  }
+  int _cmp(Note a, Note b) => compareNotes(_sortBy, a, b);
 
   Future<Note> addNote(
       {String title = '', String content = '', String? notebookId}) async {
