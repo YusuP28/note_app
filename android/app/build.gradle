@@ -33,6 +33,19 @@ def flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "
 // Google Sign-In serverClientId (dari google-services.json -> oauth_client type 3 / web)
 def googleServerClientId = System.getenv("GOOGLE_SERVER_CLIENT_ID") ?: "YOUR_SERVER_CLIENT_ID.apps.googleusercontent.com"
 
+// ===== Keystore release =====
+// Release WAJIB signed dengan keystore asli. Kalau keystore hilang jangan
+// fallback ke debug key - APK publik bisa di-re-sign dan update bisa
+// dipalsukan.
+//
+// Catatan: block `buildTypes` dievaluasi saat KONFIGURASI Gradle (bukan hanya
+// saat build type itu dipakai), jadi error harus di-throw HANYA ketika task
+// release benar-benar dijalankan - kalau tidak, build debug ikut gagal.
+def hasReleaseKeystore = envStoreFile != null && file(envStoreFile).exists()
+def isReleaseBuild = gradle.startParameter.taskNames.any {
+    it.toLowerCase().contains('release')
+}
+
 android {
     namespace = "com.yusup28.note_app"
     compileSdk = 34
@@ -66,7 +79,7 @@ android {
 
     signingConfigs {
         release {
-            if (envStoreFile != null && file(envStoreFile).exists()) {
+            if (hasReleaseKeystore) {
                 storeFile file(envStoreFile)
                 storePassword envStorePassword
                 keyAlias envKeyAlias
@@ -80,14 +93,19 @@ android {
             // Release WAJIB signed dengan keystore asli. Kalau keystore hilang
             // jangan fallback ke debug key - APK publik bisa di-re-sign dan
             // update bisa dipalsukan. Gagalkan build dengan pesan jelas.
-            if (envStoreFile != null && file(envStoreFile).exists()) {
+            if (hasReleaseKeystore) {
                 signingConfig signingConfigs.release
             } else {
-                throw new GradleException(
-                    "Keystore release tidak ditemukan (storeFile='${envStoreFile}'). " +
-                    "Set KEYSTORE_FILE/KEYSTORE_PASSWORD/KEY_ALIAS/KEY_PASSWORD di environment " +
-                    "atau isi android/key.properties. Build release DITOLAK demi keamanan."
-                )
+                if (isReleaseBuild) {
+                    throw new GradleException(
+                        "Keystore release tidak ditemukan (storeFile='${envStoreFile}'). " +
+                        "Set KEYSTORE_FILE/KEYSTORE_PASSWORD/KEY_ALIAS/KEY_PASSWORD di environment " +
+                        "atau isi android/key.properties. Build release DITOLAK demi keamanan."
+                    )
+                }
+                // Build non-release (debug/test): signingConfig release tidak
+                // dipakai, jadi biarkan kosong - JANGAN fallback ke debug key.
+                println "[!] Keystore release tidak ditemukan - build non-release tetap jalan."
             }
             minifyEnabled = true
             shrinkResources = true
