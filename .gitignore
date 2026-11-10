@@ -56,3 +56,6 @@ full_log.txt
 # Backup files (jangan commit)
 *.bak-*
 *.old.txt
+
+# Superpowers SDD workspace (ledger, briefs, review packages)
+.superpowers/
