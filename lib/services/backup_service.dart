@@ -3,12 +3,13 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive_io.dart';
+import 'package:note_app_core/note_app_core.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'attachment_service.dart';
+import 'backup_passphrase_service.dart';
 import 'database_service.dart';
 
 class BackupService {
@@ -16,7 +17,6 @@ class BackupService {
   static const int _maxAutoBackups = 7;
   static const String _attachmentsFolder = 'attachments';
   static const String _dataFileName = 'data.json';
-  static const String _publicBackupPath = '/sdcard/Download/note_app';
   static const Set<String> _mediaEmbedKeys = {
     'image',
     'video',
@@ -24,8 +24,34 @@ class BackupService {
     'file',
   };
 
-  Future<String> exportAll() async {
-    final dir = await _resolveBaseDir();
+  final BackupPassphraseService _passphrases = BackupPassphraseService();
+
+  /// Direktori tujuan backup.
+  ///
+  /// Default-nya folder APLIKASI (tidak bisa dibaca app lain), bukan
+  /// /sdcard/Download. Folder publik hanya dipakai kalau user benar-benar
+  /// minta ekspor ke lokasi yang bisa dipilihnya.
+  Future<Directory> _resolveBaseDir({bool preferPublic = false}) async {
+    if (preferPublic) {
+      final publicDir = Directory(_publicBackupPath);
+      if (await _ensureWritable(publicDir)) return publicDir;
+    }
+
+    final documents = await getApplicationDocumentsDirectory();
+    await documents.create(recursive: true);
+    return documents;
+  }
+
+  static const String _publicBackupPath = '/sdcard/Download/note_app';
+
+  /// Ekstensi file backup terenkripsi.
+  static const String _encryptedExt = '.nbak';
+
+  /// Ekstensi file backup lama (plaintext) - masih bisa di-restore.
+  static const String _legacyExt = '.zip';
+
+  Future<String> exportAll({bool preferPublic = false}) async {
+    final dir = await _resolveBaseDir(preferPublic: preferPublic);
     final file = File(
         '${dir.path}/note_app_backup_${DateTime.now().millisecondsSinceEpoch}.zip');
     return _exportTo(file.path);
@@ -48,27 +74,6 @@ class BackupService {
       await _exportTo(target.path);
       await _rotate(backupDir);
     } catch (_) {}
-  }
-
-  /// Folder publik /sdcard/Download/note_app/ (auto-create).
-  /// Kalau izin ditolak / tidak tersedia, fallback ke folder dokumen aplikasi.
-  Future<Directory> _resolveBaseDir() async {
-    final publicDir = Directory(_publicBackupPath);
-    if (await _ensureWritable(publicDir)) return publicDir;
-
-    if (Platform.isAndroid) {
-      try {
-        final status = await Permission.manageExternalStorage.status;
-        if (!status.isGranted) {
-          await Permission.manageExternalStorage.request();
-        }
-      } catch (_) {}
-      if (await _ensureWritable(publicDir)) return publicDir;
-    }
-
-    final documents = await getApplicationDocumentsDirectory();
-    await documents.create(recursive: true);
-    return documents;
   }
 
   Future<bool> _ensureWritable(Directory dir) async {
@@ -117,8 +122,10 @@ class BackupService {
       await target.parent.create(recursive: true);
       if (await target.exists()) await target.delete();
 
+      // 1. Susun ZIP di file sementara (data.json + attachments).
+      final rawZip = File(p.join(tempDir.path, 'payload.zip'));
       final encoder = ZipFileEncoder();
-      encoder.create(target.path);
+      encoder.create(rawZip.path);
       try {
         await encoder.addFile(dataFile, _dataFileName);
         final attachmentsDir = Directory(attachmentsRoot);
@@ -140,7 +147,17 @@ class BackupService {
         await encoder.close();
       }
 
-      return target.path;
+      // 2. Enkripsi SELURUH arsip (bukan cuma data.json) supaya lampiran
+      //    (foto, dokumen) ikut terlindungi.
+      final passphrase = await _resolvePassphrase();
+      final sealed = BackupEnvelope.seal(await rawZip.readAsBytes(), passphrase);
+
+      // 3. Tulis hasil enkripsi. Ekstensi .nbak menandai file terenkripsi.
+      final encryptedTarget =
+          File(targetPath.replaceAll(RegExp(r'\.zip$'), '') + _encryptedExt);
+      await encryptedTarget.writeAsString(sealed, flush: true);
+
+      return encryptedTarget.path;
     } finally {
       try {
         await tempDir.delete(recursive: true);
@@ -148,11 +165,24 @@ class BackupService {
     }
   }
 
+  /// Ambil passphrase backup. Kalau user belum pernah membuat, buat otomatis
+  /// agar backup SELALU terenkripsi (tidak pernah ada file plaintext).
+  Future<String> _resolvePassphrase() async {
+    final existing = await _passphrases.passphrase();
+    if (existing != null && existing.isNotEmpty) return existing;
+    final generated = BackupPassphraseService.generatePassphrase();
+    await _passphrases.setPassphrase(generated);
+    return generated;
+  }
+
   Future<void> _rotate(Directory dir) async {
     final files = await dir
         .list()
         .where((e) =>
-            e is File && (e.path.endsWith('.zip') || e.path.endsWith('.json')))
+            e is File &&
+            (e.path.endsWith(_encryptedExt) ||
+                e.path.endsWith(_legacyExt) ||
+                e.path.endsWith('.json')))
         .cast<File>()
         .toList();
     files.sort((a, b) => a.path.compareTo(b.path));
@@ -178,7 +208,7 @@ class BackupService {
     return file.path;
   }
 
-  Future<int> importFromFile(String path, {bool merge = true}) async {
+  Future<int> importFromFile(String path, {bool merge = true, String? passphrase}) async {
     final file = File(path);
     if (!await file.exists()) {
       throw Exception('File backup tidak ditemukan');
@@ -186,7 +216,7 @@ class BackupService {
 
     final documents = await getApplicationDocumentsDirectory();
     final attachmentsRoot = p.join(documents.path, _attachmentsFolder);
-    final data = await _readBackup(file, attachmentsRoot);
+    final data = await _readBackup(file, attachmentsRoot, passphrase: passphrase);
     final db = await DatabaseService().database;
 
     final count = await db.transaction<int>((txn) async {
@@ -308,24 +338,23 @@ class BackupService {
 
   Future<Map<String, dynamic>> _readBackup(
     File file,
-    String attachmentsRoot,
-  ) async {
-    if (await _isZip(file)) {
+    String attachmentsRoot, {
+    String? passphrase,
+  }) async {
+    // --- File terenkripsi (format baru .nbak) ---
+    final rawText = await file.readAsString();
+    if (BackupEnvelope.isEncrypted(rawText)) {
+      final effective = passphrase?.trim().isNotEmpty == true
+          ? passphrase!.trim()
+          : await _resolvePassphraseForRestore();
+      final decrypted = BackupEnvelope.open(rawText, effective);
+
       final tempDir =
           await Directory.systemTemp.createTemp('note_app_restore_');
       try {
-        await extractFileToDisk(file.path, tempDir.path);
-        final dataFile = File(p.join(tempDir.path, _dataFileName));
-        if (!await dataFile.exists()) {
-          throw Exception('data.json tidak ditemukan di dalam backup');
-        }
-        final decoded =
-            jsonDecode(await dataFile.readAsString()) as Map<String, dynamic>;
-        await _copyAttachments(
-          Directory(p.join(tempDir.path, _attachmentsFolder)),
-          Directory(attachmentsRoot),
-        );
-        return decoded;
+        final zipFile = File(p.join(tempDir.path, 'payload.zip'));
+        await zipFile.writeAsBytes(decrypted, flush: true);
+        return await _readArchive(zipFile, tempDir, attachmentsRoot);
       } finally {
         try {
           await tempDir.delete(recursive: true);
@@ -333,11 +362,55 @@ class BackupService {
       }
     }
 
-    final decoded = jsonDecode(await file.readAsString());
+    // --- File ZIP lama (plaintext, sebelum fitur enkripsi) ---
+    if (await _isZip(file)) {
+      final tempDir =
+          await Directory.systemTemp.createTemp('note_app_restore_');
+      try {
+        return await _readArchive(file, tempDir, attachmentsRoot);
+      } finally {
+        try {
+          await tempDir.delete(recursive: true);
+        } catch (_) {}
+      }
+    }
+
+    // --- File JSON polos (legacy) ---
+    final decoded = jsonDecode(rawText);
     if (decoded is! Map<String, dynamic>) {
       throw Exception('Format backup tidak dikenali');
     }
     return decoded;
+  }
+
+  /// Ekstrak arsip ZIP (data.json + attachments) ke payload map.
+  Future<Map<String, dynamic>> _readArchive(
+    File archive,
+    Directory tempDir,
+    String attachmentsRoot,
+  ) async {
+    await extractFileToDisk(archive.path, tempDir.path);
+    final dataFile = File(p.join(tempDir.path, _dataFileName));
+    if (!await dataFile.exists()) {
+      throw Exception('data.json tidak ditemukan di dalam backup');
+    }
+    final decoded =
+        jsonDecode(await dataFile.readAsString()) as Map<String, dynamic>;
+    await _copyAttachments(
+      Directory(p.join(tempDir.path, _attachmentsFolder)),
+      Directory(attachmentsRoot),
+    );
+    return decoded;
+  }
+
+  /// Passphrase untuk restore: pakai yang tersimpan, atau minta ke user.
+  Future<String> _resolvePassphraseForRestore() async {
+    final stored = await _passphrases.passphrase();
+    if (stored != null && stored.isNotEmpty) return stored;
+    throw const BackupDecryptException(
+      'Belum ada passphrase backup di perangkat ini. Masukkan passphrase '
+      'yang dipakai saat membuat backup.',
+    );
   }
 
   Future<bool> _isZip(File file) async {
@@ -421,29 +494,15 @@ class BackupService {
   }
 
   String? _toRelativeMedia(String? value, String attachmentsRoot) {
-    if (value == null || value.isEmpty) return value;
-    final normalized = p.normalize(value);
-    if (normalized == attachmentsRoot ||
-        p.isWithin(attachmentsRoot, normalized)) {
-      final relative = p
-          .relative(normalized, from: attachmentsRoot)
-          .replaceAll(p.separator, '/');
-      return '$_attachmentsFolder/$relative';
-    }
-    return value;
+    // Path traversal dicegah di note_app_core (toRelativeMediaPath).
+    return toRelativeMediaPath(value, attachmentsRoot);
   }
 
   String? _toAbsoluteMedia(String? value, String attachmentsRoot) {
-    if (value == null || value.isEmpty) return value;
-    final normalized = value.replaceAll('\\', '/');
-    if (normalized == _attachmentsFolder) return attachmentsRoot;
-    if (normalized.startsWith('$_attachmentsFolder/')) {
-      return p.join(
-        attachmentsRoot,
-        normalized.substring(_attachmentsFolder.length + 1),
-      );
-    }
-    return value;
+    // Path traversal dicegah di note_app_core (toAbsoluteMediaPath).
+    // Nilai path berasal dari file backup yang dikontrol penyerang, jadi
+    // harus divalidasi sebelum dipakai.
+    return toAbsoluteMediaPath(value, attachmentsRoot);
   }
 
   String? _mapAttachmentList(

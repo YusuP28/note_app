@@ -9,13 +9,30 @@ Versioning: [Semantic Versioning](https://semver.org/)
 - **Fondasi lampiran media** — tabel `note_attachments`, model `Attachment`, dan `AttachmentService` (simpan/hapus/bersihkan orphan)
 - **Backup v3 (ZIP)** — `data.json` + folder `attachments/`, restore dengan urutan FK yang benar
 - **Versi aplikasi dinamis** via `package_info_plus`
+- **Enkripsi backup (AES-256-GCM)** — seluruh arsip backup terenkripsi, kunci diturunkan dari passphrase (PBKDF2 210.000 iterasi). Format file `.nbak`
+- **Enkripsi konten catatan terkunci** — kolom `content` + `plain_text` di SQLite dienkripsi, kunci disimpan di Android Keystore (flutter_secure_storage)
+- **Passphrase Backup** di Settings — lihat / buat / ganti passphrase; restore dari perangkat lain bisa input passphrase
+- **`packages/note_app_core`** — package pure-Dart berisi logika keamanan (BackupCrypto, BackupEnvelope, NoteCipher, MediaPathGuard, LockoutPolicy, Pbkdf2) yang bisa diuji tanpa Flutter SDK
+- **Test suite** — 14 test app (`flutter test`) + 45 test core (`dart test`)
+- **CI quality gate** — `flutter analyze` + `flutter test` + `dart test` jalan sebelum build APK
+- **`network_security_config.xml`** — cleartext traffic dinonaktifkan
+- **`FLAG_SECURE`** — cegah screenshot & pratinjau Recent Apps
 
 ### Diubah
-- **Lokasi backup ZIP** dipindah ke folder publik `/sdcard/Download/note_app/` (folder dibuat otomatis; fallback ke folder aplikasi jika izin ditolak)
+- **Lokasi backup** — default ke folder privat aplikasi (bukan lagi `/sdcard/Download/note_app/`); folder publik hanya bila user meminta ekspor eksplisit
+- **Backup code tunduk throttle** — sebelumnya tidak pernah mengecek lockout dan tidak menaikkan `_kFailCount` (bypass PIN via brute force)
+- **Backup code sekali pakai** — di-invalidasi setelah dipakai untuk reset PIN
+- **Build release wajib keystore** — tidak ada fallback ke debug key (build gagal dengan pesan jelas)
+- **`signInSilently()` tidak lagi dipanggil otomatis** saat app launch — koneksi ke Google hanya saat user memakai fitur Drive
 
 ### Diperbaiki
+- **Path traversal saat restore** — path media dari file backup sekarang divalidasi (`p.isWithin`); nilai `../` dari file backup yang dikontrol penyerang ditolak
 - Urutan restore backup: notebook → tag → catatan → relasi tag → lampiran (sebelumnya catatan di-insert sebelum notebook)
 - Auto-backup, backup lokal, dan Google Drive sekarang menyertakan lampiran media
+- **Bug urutan step CI** — step `Determine build mode` dipindah ke atas agar kondisi `if:` pada step google-services/keystore benar-benar evaluates
+- Email user tidak lagi ditulis ke logcat saat auto-backup
+
+---
 
 ---
 

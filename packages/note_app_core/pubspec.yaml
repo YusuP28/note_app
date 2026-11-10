@@ -1,0 +1,15 @@
+name: note_app_core
+description: Logika inti (pure Dart) untuk aplikasi Catatanku - enkripsi backup, guard path media, policy lockout.
+version: 1.0.0
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  crypto: ^3.0.6
+  path: ^1.9.0
+  pointycastle: ^3.9.1
+
+dev_dependencies:
+  test: ^1.25.8

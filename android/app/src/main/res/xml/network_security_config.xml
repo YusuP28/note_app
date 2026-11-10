@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Konfigurasi keamanan jaringan.
+
+ -cleartextTrafficPermitted="false"  : aplikasi hanya boleh bicara lewat HTTPS.
+  Tidak ada domain trusted-user yang mengizinkan HTTP.
+
+  Backup file dan isi catatan tidak boleh pernah dikirim lewat koneksi
+  tidak terenkripsi.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

@@ -56,7 +56,7 @@ class NoteProvider extends ChangeNotifier {
         final tagRows = await db.query('note_tags',
             columns: ['tag_id'], where: 'note_id = ?', whereArgs: [r['id']]);
         final tags = tagRows.map((e) => e['tag_id'] as String).toList();
-        _notes.add(Note.fromMap(r, tags: tags));
+        _notes.add(Note.fromMap(_db.cipher.decryptRow(r), tags: tags));
       }
       _applyFilter();
     } catch (e, st) {
@@ -115,7 +115,7 @@ class NoteProvider extends ChangeNotifier {
         final tags = rawTags == null || rawTags.isEmpty
             ? const <String>[]
             : rawTags.split(',');
-        return Note.fromMap(r, tags: tags);
+        return Note.fromMap(_db.cipher.decryptRow(r), tags: tags);
       }).toList();
     } catch (e) {
       _filtered = [];
@@ -202,10 +202,11 @@ class NoteProvider extends ChangeNotifier {
   Future<void> updateNote(Note note) async {
     note.updatedAt = DateTime.now();
     final db = await _db.database;
+    final row = _db.cipher.encryptRow(note.toMap());
     await db.transaction((txn) async {
       await txn.update(
         'notes',
-        note.toMap(),
+        row,
         where: 'id = ?',
         whereArgs: [note.id],
       );

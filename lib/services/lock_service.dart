@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
+import 'package:note_app_core/note_app_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -28,9 +29,9 @@ class LockService {
   static const int _pbkdf2Iterations = 210000;
   static const int _saltBytes = 16;
   static const int _keyBytes = 32;
-  static const int _freeAttempts = 5;
-  static const int _shortLockSeconds = 30;
-  static const int _longLockSeconds = 300;
+
+  // Jml ttl percobaan & durasi lockout diatur oleh LockoutPolicy (shared
+  // dengan backup code) supaya tidak ada jalur bypass.
 
   final LocalAuthentication _auth = LocalAuthentication();
 
@@ -124,27 +125,45 @@ class LockService {
       return true;
     }
 
+    await _registerFailure(p);
+    return false;
+  }
+
+  /// Catat satu kegagalan percobaan + terapkan lockout.
+  ///
+  /// Dipakai bersama oleh PIN dan backup code supaya tidak ada jalur bypass:
+  /// sebelumnya `verifyBackupCode` tidak pernah mengecek lockout maupun
+  /// menaikkan `_kFailCount`, sehingga 1 juta kombinasi bisa dicoba bebas.
+  Future<void> _registerFailure(SharedPreferences p) async {
     final fails = (p.getInt(_kFailCount) ?? 0) + 1;
     await p.setInt(_kFailCount, fails);
-    final lockSeconds = fails >= _freeAttempts * 2
-        ? _longLockSeconds
-        : (fails >= _freeAttempts ? _shortLockSeconds : 0);
-    if (lockSeconds > 0) {
+
+    final decision = LockoutPolicy.decide(fails);
+    if (decision.lockSeconds > 0) {
       await p.setInt(
         _kLockUntil,
-        DateTime.now().millisecondsSinceEpoch + lockSeconds * 1000,
+        DateTime.now().millisecondsSinceEpoch + decision.lockSeconds * 1000,
       );
     }
-    return false;
   }
 
   Future<bool> verifyBackupCode(String code) async {
     final p = await SharedPreferences.getInstance();
+    // Backup code tunduk throttle yang sama dengan PIN.
+    if (await lockoutRemainingSeconds() > 0) return false;
+
     final normalized = code.trim();
 
     final storedHash = p.getString(_kBackupCodeHash);
     if (storedHash != null) {
-      return _verifyHash(normalized, storedHash);
+      final ok = await _verifyHash(normalized, storedHash);
+      if (!ok) {
+        await _registerFailure(p);
+        return false;
+      }
+      await p.setInt(_kFailCount, 0);
+      await p.remove(_kLockUntil);
+      return true;
     }
 
     // Legacy: backup code tersimpan plaintext -> verifikasi lalu migrasi.
@@ -157,11 +176,19 @@ class LockService {
     if (ok) {
       await p.setString(_kBackupCodeHash, await _derive(normalized));
       await p.remove(_kBackupCode);
+      await p.setInt(_kFailCount, 0);
+      await p.remove(_kLockUntil);
+    } else {
+      await _registerFailure(p);
     }
     return ok;
   }
 
   /// Reset PIN pakai backup code (sekali pakai).
+  ///
+  /// Backup code DINVALIDASI setelah dipakai supaya tidak bisa dipakai ulang
+  /// untuk mengambil alih aplikasi.
+  ///
   /// Return backup code baru, atau null kalau gagal.
   Future<String?> resetWithBackupCode(
     String code,
@@ -169,6 +196,12 @@ class LockService {
     String? hint,
   }) async {
     if (!await verifyBackupCode(code)) return null;
+
+    // Backup code lama hangus - tidak bisa dipakai lagi.
+    final p = await SharedPreferences.getInstance();
+    await p.remove(_kBackupCodeHash);
+    await p.remove(_kBackupCode);
+
     return setPin(newPin, hint: hint);
   }
 

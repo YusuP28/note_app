@@ -23,7 +23,8 @@
         android:roundIcon="@mipmap/launcher_icon"
         android:allowBackup="false"
         android:fullBackupContent="false"
-        android:requestLegacyExternalStorage="true">
+        android:requestLegacyExternalStorage="true"
+        android:networkSecurityConfig="@xml/network_security_config">
 
         <activity
             android:name=".MainActivity"
@@ -61,7 +62,9 @@
             android:enabled="true"
             android:exported="false" />
 
-        <!-- Boot Receiver — restore alarm setelah restart HP -->
+        <!-- Boot Receiver — restore alarm setelah restart HP.
+             exported=truerequired agar bisa menerima broadcast BOOT_COMPLETED
+             dari sistem. Receiver ini tidak mengekspos data catatan. -->
         <receiver
             android:name=".BootReceiver"
             android:enabled="true"
