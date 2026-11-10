@@ -201,7 +201,15 @@ class BackupService {
   Future<String> writeTempBackup(Uint8List bytes, {String? fileName}) async {
     final dir = await getTemporaryDirectory();
     final lower = (fileName ?? '').toLowerCase();
-    final extension = lower.endsWith('.json') ? 'json' : 'zip';
+    final String extension;
+    if (lower.endsWith('.json')) {
+      extension = 'json';
+    } else if (lower.endsWith(_legacyExt)) {
+      extension = 'zip';
+    } else {
+      // Default: file backup terenkripsi (.nbak)
+      extension = 'nbak';
+    }
     final file = File(
         '${dir.path}/note_app_restore_${DateTime.now().millisecondsSinceEpoch}.$extension');
     await file.writeAsBytes(bytes, flush: true);
