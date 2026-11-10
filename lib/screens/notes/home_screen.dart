@@ -259,13 +259,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final p = context.watch<NoteProvider>();
     final s = context.watch<SettingsProvider>();
-    final title = switch (p.filter) {
-      NoteFilter.all => 'Catatanku',
-      NoteFilter.pinned => 'Disematkan',
-      NoteFilter.archived => 'Arsip',
-      NoteFilter.trashed => 'Sampah',
-    };
-
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {

@@ -44,7 +44,6 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
   Timer? _draftTimer;
   String? _searchQuery; // Kata kunci pencarian untuk highlight
   List<int> _highlightPositions = []; // Posisi offset dari highlight
-  int _currentHighlightIndex = 0; // Index highlight saat ini
 
   String get _draftKeyTitle => 'draft_${_working.id}_title';
   String get _draftKeyContent => 'draft_${_working.id}_content';
@@ -125,7 +124,6 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
   /// Scroll ke highlight tertentu
   void _scrollToHighlight(int index) {
     if (index < 0 || index >= _highlightPositions.length) return;
-    _currentHighlightIndex = index;
     final offset = _highlightPositions[index];
     // Gunakan setSelection untuk scroll ke posisi
     _contentCtrl.updateSelection(
