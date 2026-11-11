@@ -9,54 +9,70 @@ void main() {
   final now = DateTime(2026, 11, 11, 8, 0, 0);
 
   group('TrashPurgeService.shouldRun', () {
-    test('true kalau belum pernah purge (lastRun null)', () async {
-      final hasil = await TrashPurgeService.shouldRun(
+    test('true kalau belum pernah purge (lastRun null)', () {
+      final hasil = TrashPurgeService.shouldRun(
         lastRun: null,
-        days: 30,
         now: now,
       );
 
       expect(hasil, isTrue);
     });
 
-    test('false kalau purge terakhir 1 jam lalu (belum 1 hari)', () async {
-      final hasil = await TrashPurgeService.shouldRun(
+    test('false kalau purge terakhir 1 jam lalu (belum 1 hari)', () {
+      final hasil = TrashPurgeService.shouldRun(
         lastRun: now.subtract(const Duration(hours: 1)),
-        days: 30,
         now: now,
       );
 
       expect(hasil, isFalse);
     });
 
-    test('true kalau purge terakhir 2 hari lalu', () async {
-      final hasil = await TrashPurgeService.shouldRun(
+    test('true kalau purge terakhir 2 hari lalu', () {
+      final hasil = TrashPurgeService.shouldRun(
         lastRun: now.subtract(const Duration(days: 2)),
-        days: 30,
         now: now,
       );
 
       expect(hasil, isTrue);
     });
 
-    test('true kalau purge terakhir tepat 1 hari lalu (>= 1 hari penuh)', () async {
-      final hasil = await TrashPurgeService.shouldRun(
+    test('true kalau purge terakhir tepat 1 hari lalu (>= 1 hari penuh)', () {
+      final hasil = TrashPurgeService.shouldRun(
         lastRun: now.subtract(const Duration(days: 1)),
-        days: 30,
         now: now,
       );
 
       expect(hasil, isTrue);
     });
 
-    test('false kalau purge terakhir hampir 1 hari lalu (kurang dari 1 hari)', () async {
-      final hasil = await TrashPurgeService.shouldRun(
+    test(
+        'false kalau purge terakhir hampir 1 hari lalu (kurang dari 1 hari)', () {
+      final hasil = TrashPurgeService.shouldRun(
         lastRun: now.subtract(const Duration(days: 1, seconds: -1)),
-        days: 30,
         now: now,
       );
 
       expect(hasil, isFalse);
+    });
+
+    test('ambang minIntervalDays khusus dihormati (mis. 7 hari)', () {
+      final hasil = TrashPurgeService.shouldRun(
+        lastRun: now.subtract(const Duration(days: 2)),
+        now: now,
+        minIntervalDays: 7,
+      );
+
+      expect(hasil, isFalse);
+    });
+
+    test('ambang minIntervalDays khusus terlampaui -> jalan', () {
+      final hasil = TrashPurgeService.shouldRun(
+        lastRun: now.subtract(const Duration(days: 8)),
+        now: now,
+        minIntervalDays: 7,
+      );
+
+      expect(hasil, isTrue);
     });
   });
 
@@ -85,29 +101,47 @@ void main() {
       expect(tersimpan, isPositive);
     });
 
+    test('umur isi sampah diteruskan ke purge (default 30 hari)', () async {
+      final service = buatService();
+
+      await service.runIfDue();
+
+      expect(hariPurge, <int>[30]);
+    });
+
+    test('umur isi sampah kustom diteruskan apa adanya ke purge', () async {
+      final service = buatService();
+
+      await service.runIfDue(days: 7);
+
+      expect(hariPurge, <int>[7]);
+    });
+
     test('purge tidak dijalankan kalau terakhir jalan kurang dari 1 hari', () async {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(
-        TrashPurgeService.lastRunKey,
-        DateTime.now().subtract(const Duration(hours: 2)).millisecondsSinceEpoch,
-      );
+      final sebelum = DateTime.now()
+          .subtract(const Duration(hours: 2))
+          .millisecondsSinceEpoch;
+      await prefs.setInt(TrashPurgeService.lastRunKey, sebelum);
 
       final service = buatService();
       await service.runIfDue(days: 30);
 
       expect(hariPurge, isEmpty);
 
-      // Timestamp lama tidak boleh ditimpa.
+      // Timestamp lama tidak boleh ditimpa: nilainya harus PERSIS sama
+      // dengan nilai sebelum purge (bukan hanya "ada").
       final setelah = prefs.getInt(TrashPurgeService.lastRunKey);
       expect(setelah, isNotNull);
+      expect(setelah, sebelum);
     });
 
     test('purge dijalankan lagi kalau sudah lewat 1 hari', () async {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(
-        TrashPurgeService.lastRunKey,
-        DateTime.now().subtract(const Duration(days: 3)).millisecondsSinceEpoch,
-      );
+      final sebelum = DateTime.now()
+          .subtract(const Duration(days: 3))
+          .millisecondsSinceEpoch;
+      await prefs.setInt(TrashPurgeService.lastRunKey, sebelum);
 
       final service = buatService();
       await service.runIfDue(days: 30);
@@ -116,10 +150,7 @@ void main() {
 
       final setelah = prefs.getInt(TrashPurgeService.lastRunKey);
       expect(setelah, isNotNull);
-      expect(setelah,
-          greaterThan(DateTime.now()
-              .subtract(const Duration(days: 3))
-              .millisecondsSinceEpoch));
+      expect(setelah, greaterThan(sebelum));
     });
 
     test('timestamp tidak disimpan kalau purge gagal', () async {

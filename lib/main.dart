@@ -32,10 +32,22 @@ Future<void> main() async {
   // Aktifkan enkripsi konten catatan terkunci (kunci dari Android Keystore).
   await DatabaseService().initContentCipher();
 
+  // SATU instance NoteProvider untuk seluruh aplikasi: dipakai provider tree
+  // (lihat NoteApp) DAN auto-purge di bawah. Kalau purge memakai instance
+  // sendiri, terjadi load penuh kedua di startup + instance yatim yang
+  // tidak pernah di-dispose.
+  final noteProvider = NoteProvider();
+
   // Auto-purge sampah lama (> 30 hari) - otomatis, bukan hanya tombol manual
   // di Settings. Kegagalan tidak boleh menggagalkan start aplikasi.
+  //
+  // Urutan: purge dijalankan SEBELUM UI mount, memakai instance provider yang
+  // sama. `purgeOldTrash` memuat ulang daftar (load()) di akhir, jadi data
+  // yang tampil di UI sudah bebas dari sampah lama.
   try {
-    await TrashPurgeService().runIfDue(days: 30);
+    await TrashPurgeService(
+      purge: (days) => noteProvider.purgeOldTrash(days: days),
+    ).runIfDue(days: 30);
   } catch (e) {
     debugPrint('auto-purge gagal: $e');
   }
@@ -56,7 +68,11 @@ Future<void> main() async {
     await AutoBackupService().checkAndRun(settings);
   });
 
-  runApp(NoteApp(settings: settings, theme: theme));
+  runApp(NoteApp(
+    settings: settings,
+    theme: theme,
+    noteProvider: noteProvider,
+  ));
 }
 
 /// Request permission runtime: notifikasi (Android 13+) + alarm exact
@@ -79,7 +95,15 @@ class NoteApp extends StatelessWidget {
   final SettingsProvider settings;
   final ThemeProvider theme;
 
-  const NoteApp({super.key, required this.settings, required this.theme});
+  /// Instance NoteProvider yang dipakai bersama dengan auto-purge.
+  final NoteProvider noteProvider;
+
+  const NoteApp({
+    super.key,
+    required this.settings,
+    required this.theme,
+    required this.noteProvider,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +111,9 @@ class NoteApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider.value(value: theme),
         ChangeNotifierProvider.value(value: settings),
-        ChangeNotifierProvider(create: (_) => NoteProvider()),
+        // `.value` — instance yang sama dengan yang dipakai auto-purge,
+        // jadi tidak ada provider kedua yang melakukan load penuh sendiri.
+        ChangeNotifierProvider.value(value: noteProvider),
         ChangeNotifierProvider(create: (_) => NotebookProvider()),
         ChangeNotifierProvider(create: (_) => TagProvider()),
       ],

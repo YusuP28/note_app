@@ -1,55 +1,58 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../providers/note_provider.dart';
-
-/// Fungsi purge yang bisa di-inject (default: [NoteProvider.purgeOldTrash]).
+/// Fungsi purge yang bisa di-inject, biasanya
+/// `NoteProvider.purgeOldTrash(days: days)`.
 typedef TrashPurgeCallback = Future<void> Function(int days);
 
 /// Auto-purge sampah: catatan di sampah yang sudah lebih tua dari
 /// [days] hari dihapus permanen secara otomatis saat aplikasi dibuka.
 ///
 /// Ini menutup kesenjangan spec: README mengklaim "Auto-purge - sampah >
-/// 30 hari otomatis dibersihkan", sebelumnya [NoteProvider.purgeOldTrash]
+/// 30 hari otomatis dibersihkan", sebelumnya `NoteProvider.purgeOldTrash`
 /// hanya bisa dipanggil manual dari Settings.
 ///
 /// Timestamp terakhir purge disimpan di SharedPreferences (key
 /// [lastRunKey]) supaya purge tidak dijalankan lebih dari sekali sehari.
+///
+/// Catatan: instance `NoteProvider` yang dipakai untuk purge harus DIBAIKI
+/// DENGAN instance yang sama yang dipakai provider tree (lihat `main.dart`),
+/// supaya tidak ada provider yatim yang melakukan load penuh kedua.
 class TrashPurgeService {
   /// Key SharedPreferences untuk menyimpan waktu purge terakhir.
   static const String lastRunKey = 'trash_purge_last_run';
 
-  /// Jarak minimum antar dua kali purge (hari).
+  /// Jarak minimum default antar dua kali purge (hari).
   static const int minIntervalDays = 1;
 
   final TrashPurgeCallback _purge;
 
-  /// [purge] dipakai untuk testing; kalau null memakai
-  /// [NoteProvider.purgeOldTrash].
-  TrashPurgeService({TrashPurgeCallback? purge})
-      : _purge = purge ?? _purgeDefault;
-
-  static Future<void> _purgeDefault(int days) async {
-    await NoteProvider().purgeOldTrash(days: days);
-  }
+  /// [purge] dipakai untuk testing maupun untuk menyuntikkan
+  /// `NoteProvider` yang sudah dipakai provider tree.
+  TrashPurgeService({required TrashPurgeCallback purge}) : _purge = purge;
 
   /// Apakah purge perlu dijalankan sekarang?
   ///
   /// - `lastRun == null` (belum pernah jalan) → selalu jalan.
-  /// - Selain itu jalan kalau sudah lewat [minIntervalDays] (1 hari).
+  /// - Selain itu jalan kalau sudah lewat [minIntervalDays] hari
+  ///   (default 1 hari).
   ///
-  /// [days] adalah ambang usia isi sampah (mis. 30 hari) - tidak memengaruhi
-  /// penjadwalan, hanya dipakai saat purge benar-benar dijalankan.
-  static Future<bool> shouldRun({
+  /// Parameter [minIntervalDays] adalah jarak antar dua kali purge.
+  /// Ambang usia isi sampah (mis. 30 hari) TIDAK ada di sini — ambang itu
+  /// dipakai di [runIfDue] saat purge benar-benar dijalankan.
+  static bool shouldRun({
     required DateTime? lastRun,
-    required int days,
     required DateTime now,
-  }) async {
+    int minIntervalDays = TrashPurgeService.minIntervalDays,
+  }) {
     if (lastRun == null) return true;
     return now.difference(lastRun).inDays >= minIntervalDays;
   }
 
   /// Jalankan purge kalau sudah waktunya, lalu simpan waktu purge terakhir.
+  ///
+  /// [days] adalah ambang usia isi sampah (default 30 hari) dan diteruskan
+  /// ke callback purge (`purgeOldTrash(days: days)`).
   ///
   /// Kalau purge gagal, exception diteruskan dan timestamp TIDAK disimpan,
   /// supaya purge dicoba lagi di pembukaan aplikasi berikutnya.
@@ -61,7 +64,11 @@ class TrashPurgeService {
         : null;
     final now = DateTime.now();
 
-    final jalan = await shouldRun(lastRun: lastRun, days: days, now: now);
+    final jalan = shouldRun(
+      lastRun: lastRun,
+      now: now,
+      minIntervalDays: TrashPurgeService.minIntervalDays,
+    );
     if (!jalan) {
       debugPrint('Auto-purge: belum waktunya');
       return;
