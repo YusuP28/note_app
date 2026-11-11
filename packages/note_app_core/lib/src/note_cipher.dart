@@ -24,6 +24,23 @@ class NoteCipher {
     return _crypto.decryptString(value);
   }
 
+  /// Dekripsi teks, tapi TIDAK PERNAH menghapus isinya.
+  ///
+  /// Kalau dekripsi gagal (kunci berubah / data rusak / ciphertext rusak),
+  /// nilai asli dikembalikan apa adanya. Nilai kosong atau string error akan
+  /// membuat catatan terkunci yang tersimpan ulang menimpa isi aslinya dengan
+  /// data kosong - itu data loss. Lebih baik isinya tetap berupa ciphertext
+  /// (yang bisa dikenali lewat [isEncryptedText]) daripada hilang.
+  String decryptOrKeep(String value) {
+    if (value.isEmpty) return value;
+    if (!isEncryptedText(value)) return value;
+    try {
+      return _crypto.decryptString(value);
+    } catch (_) {
+      return value;
+    }
+  }
+
   /// Apakah nilai ini hasil enkripsi NoteCipher?
   bool isEncrypted(String value) => NoteCipher.isEncryptedText(value);
 

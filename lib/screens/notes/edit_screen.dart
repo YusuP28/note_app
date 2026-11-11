@@ -81,6 +81,13 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
     _contentJson = _decryptContent(_working.content);
     _contentCtrl = _buildQuillController(_contentJson);
     if (widget.readOnly) _contentCtrl.readOnly = true;
+    // Isi yang gagal didekripsi (kunci enkripsi berubah / data rusak)
+    // ditampilkan read-only. Menapezeditnya hanya berisiko isi asli
+    // ditimpa, padahal isinya masih utuh di database.
+    if (_working.decryptFailed) {
+      _contentCtrl.readOnly = true;
+      _titleCtrl.readOnly = true;
+    }
 
     _reminder = _working.reminderAt;
     _bgImagePath = _working.bgImagePath;
@@ -787,6 +794,30 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                           onPressed: () => setState(() => _reminder = null),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (_working.decryptFailed)
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: scheme.error.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: scheme.error.withOpacity(0.5)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded,
+                            size: 16, color: scheme.error),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Isi catatan tidak bisa dibuka (kunci enkripsi berubah atau data rusak). '
+                            'Isi asli tetap tersimpan dan tidak akan ditimpa.',
+                            style: TextStyle(fontSize: 12, color: textColor),
+                          ),
                         ),
                       ],
                     ),

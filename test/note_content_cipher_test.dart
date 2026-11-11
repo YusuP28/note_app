@@ -99,6 +99,57 @@ void main() {
 
       expect(encrypted['content'], '');
     });
+
+    test(
+      'dekripsi gagal tidak menghapus isi (ciphertext asli dikembalikan)',
+      () async {
+        // Regression FIX A: dulu `_decryptOrKeep` mengembalikan string kosong
+        // saat dekripsi gagal. Catatan terkunci yang lalu disimpan ulang
+        // menimpa isinya yang asli dengan string kosong -> data loss.
+        final cipher = await NoteContentCipher.fromKey(key);
+        final lain = await NoteContentCipher.fromKey(
+          List<int>.generate(32, (i) => 200 - i),
+        );
+        final row = <String, dynamic>{
+          'content': 'rahasia',
+          'plain_text': 'rahasia',
+          'is_locked': 1,
+        };
+        final encrypted = lain.encryptRow(row);
+        final ciphertext = encrypted['content'] as String;
+
+        final decrypted = cipher.decryptRow(encrypted);
+
+        expect(decrypted['content'], ciphertext);
+        expect(decrypted['plain_text'], isNotEmpty);
+        expect(decrypted['plain_text'], isNot(''));
+      },
+    );
+
+    test(
+      'catatan terkunci yang gagal didekripsi bisa disimpan ulang tanpa kehilangan isi',
+      () async {
+        final cipher = await NoteContentCipher.fromKey(key);
+        final lain = await NoteContentCipher.fromKey(
+          List<int>.generate(32, (i) => 200 - i),
+        );
+        final row = <String, dynamic>{
+          'content': 'rahasia',
+          'plain_text': 'rahasia',
+          'is_locked': 1,
+        };
+        final encrypted = lain.encryptRow(row);
+
+        // Siklus: baca (gagal) -> simpan ulang.
+        final decrypted = cipher.decryptRow(encrypted);
+        final saved = cipher.encryptRow(decrypted);
+
+        // Isi tidak boleh berubah jadi kosong.
+        expect(saved['content'], isNotEmpty);
+        expect(saved['plain_text'], isNotEmpty);
+        expect(saved['content'], isNot(contains('rahasia')));
+      },
+    );
   });
 
   group('NoteContentCipher.decryptText', () {

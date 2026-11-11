@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:note_app_core/note_app_core.dart';
 
 import '../../../services/lock_service.dart';
 import 'section_header.dart';
@@ -145,7 +146,7 @@ class SecuritySection extends StatelessWidget {
               obscureText: true,
               maxLength: 6,
               decoration: const InputDecoration(
-                labelText: 'PIN (4-6 digit)',
+                labelText: 'PIN (6 digit)',
                 border: OutlineInputBorder(),
                 counterText: '',
               ),
@@ -176,10 +177,13 @@ class SecuritySection extends StatelessWidget {
     if (result != true) return;
 
     final pin = pinCtrl.text.trim();
-    if (pin.length < 4 || pin.length > 6) {
+    // Aturan kekuatan PIN (panjang, karakter, pola mudah ditebak) centrally
+    // di [PinPolicy] supaya UI dan service memakai aturan yang sama.
+    final pinError = PinPolicy.validate(pin);
+    if (pinError != null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PIN harus 4-6 digit')),
+          SnackBar(content: Text(pinError)),
         );
       }
       return;
@@ -267,10 +271,11 @@ class SecuritySection extends StatelessWidget {
       return;
     }
     final newPin = newCtrl.text.trim();
-    if (newPin.length < 4 || newPin.length > 6) {
+    final newPinError = PinPolicy.validate(newPin);
+    if (newPinError != null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PIN baru harus 4-6 digit')),
+          SnackBar(content: Text(newPinError)),
         );
       }
       return;

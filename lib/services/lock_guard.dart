@@ -29,6 +29,19 @@ Future<bool> assertUnlocked(BuildContext context, Note note) async {
 
 Future<bool> toggleNoteLock(BuildContext context, Note note) async {
   try {
+    // Catatan yang isinya gagal didekripsi TIDAK boleh dibuka kuncinya:
+    // kontennya masih ciphertext, dan melepas kunci akan menuliskannya
+    // sebagai plaintext - isinya jadi tidak bisa dibaca selamanya.
+    if (note.decryptFailed) {
+      if (context.mounted) {
+        _snack(
+          context,
+          'Isi catatan tidak bisa dibuka - kunci enkripsi berubah atau data rusak',
+        );
+      }
+      return false;
+    }
+
     final lock = LockService();
     final enabled = await lock.isEnabled();
 

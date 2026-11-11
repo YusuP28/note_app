@@ -12,20 +12,24 @@ Versioning: [Semantic Versioning](https://semver.org/)
 - **Enkripsi backup (AES-256-GCM)** — seluruh arsip backup terenkripsi, kunci diturunkan dari passphrase (PBKDF2 210.000 iterasi). Format file `.nbak`
 - **Enkripsi konten catatan terkunci** — kolom `content` + `plain_text` di SQLite dienkripsi, kunci disimpan di Android Keystore (flutter_secure_storage)
 - **Passphrase Backup** di Settings — lihat / buat / ganti passphrase; restore dari perangkat lain bisa input passphrase
-- **`packages/note_app_core`** — package pure-Dart berisi logika keamanan (BackupCrypto, BackupEnvelope, NoteCipher, MediaPathGuard, LockoutPolicy, Pbkdf2) yang bisa diuji tanpa Flutter SDK
-- **Test suite** — 65 test app (`flutter test`) + 95 test core (`dart test`)
+- **`packages/note_app_core`** — package pure-Dart berisi logika keamanan (BackupCrypto, BackupEnvelope, NoteCipher, MediaPathGuard, LockoutPolicy, PinPolicy, Pbkdf2) yang bisa diuji tanpa Flutter SDK
+- **Test suite** — 76 test app (`flutter test`) + 109 test core (`dart test`)
 - **CI quality gate** — `flutter analyze` + `flutter test` + `dart test` jalan sebelum build APK
 - **`network_security_config.xml`** — cleartext traffic dinonaktifkan
 - **`FLAG_SECURE`** — cegah screenshot & pratinjau Recent Apps
 
 ### Diubah
-- **Lokasi backup** — default ke folder privat aplikasi (bukan lagi `/sdcard/Download/note_app/`); folder publik hanya bila user meminta ekspor eksplisit
+- **Lokasi backup** — semua backup disimpan di folder privat aplikasi; ekspor manual memakai Storage Access Framework (system file picker) sehingga user sendiri yang memilih lokasi file
+- **Izin `MANAGE_EXTERNAL_STORAGE` dihapus** — beserta `requestLegacyExternalStorage`; tidak ada lagi akses storage eksternal dari aplikasi
+- **PIN baru wajib 6 digit** — PIN lama 4 digit milik user tetap bisa dipakai untuk membuka aplikasi; PIN baru yang terlalu mudah ditebak (`123456`, `111111`) ditolak. Aturan centralized di `PinPolicy`
 - **Backup code tunduk throttle** — sebelumnya tidak pernah mengecek lockout dan tidak menaikkan `_kFailCount` (bypass PIN via brute force)
 - **Backup code sekali pakai** — di-invalidasi setelah dipakai untuk reset PIN
 - **Build release wajib keystore** — tidak ada fallback ke debug key (build gagal dengan pesan jelas)
 - **`signInSilently()` tidak lagi dipanggil otomatis** saat app launch — koneksi ke Google hanya saat user memakai fitur Drive
 
 ### Diperbaiki
+- **Data loss saat dekripsi gagal** — isi catatan terkunci yang gagal didekripsi (kunci berubah / data rusak) dulu diganti string kosong, dan catatan yang tersimpan ulang menimpanya jadi kosong. Sekarang isi aslinya (ciphertext) tetap utuh, editor dibuka read-only + banner peringatan, dan catatan tidak bisa dibuka kuncinya sampai dekripsi berhasil
+- **Email user bocor ke logcat** — tiga titik log di `GoogleDriveService` (`signIn`, `signIn` fallback, `signInSilently`) tidak lagi menulis email
 - **Highlight pencarian tak terbaca di tema gelap** — teks di atas highlight kuning sekarang dipaksa hitam (sebelumnya warna teks ikut tema, putih di tema gelap)
 - **Highlight pada catatan terkunci** — konten didekripsi sebelum dokumen editor dibangun, jadi yang dirender dan disorot adalah isi catatan, bukan sandi
 - **Posisi highlight tidak lagi bergeser** — pencarian kata kunci kini dicocokkan per karakter tanpa memakai salinan lowercase, sehingga offset highlight tetap akurat (mis. teks berhuruf 'İ')

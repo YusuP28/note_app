@@ -60,4 +60,44 @@ void main() {
       expect(cipher.isEncrypted(''), isFalse);
     });
   });
+
+  group('NoteCipher.decryptOrKeep', () {
+    final key = Uint8List.fromList(List<int>.generate(32, (i) => i + 1));
+
+    test('ciphertext dengan kunci salah dikembalikan apa adanya', () {
+      // Ini inti FIX A: dekripsi yang gagal TIDAK boleh mengubah isi menjadi
+      // string kosong, karena catatan terkunci yang lalu disimpan ulang akan
+      // menimpa isinya yang asli dengan string kosong (data loss).
+      final cipher = NoteCipher(key);
+      final otherKey = Uint8List.fromList(List<int>.filled(32, 3));
+      final ciphertext = cipher.encrypt('rahasia');
+
+      expect(NoteCipher(otherKey).decryptOrKeep(ciphertext), ciphertext);
+      expect(NoteCipher(otherKey).decryptOrKeep(ciphertext), isNot(isEmpty));
+    });
+
+    test('ciphertext rusak dikembalikan apa adanya', () {
+      final cipher = NoteCipher(key);
+
+      expect(cipher.decryptOrKeep('NBNOTE1.abc.def'), 'NBNOTE1.abc.def');
+    });
+
+    test('ciphertext valid didekripsi menjadi plaintext', () {
+      final cipher = NoteCipher(key);
+
+      expect(cipher.decryptOrKeep(cipher.encrypt('rahasia')), 'rahasia');
+    });
+
+    test('teks biasa dikembalikan apa adanya', () {
+      final cipher = NoteCipher(key);
+
+      expect(cipher.decryptOrKeep('bukan-ciphertext'), 'bukan-ciphertext');
+    });
+
+    test('string kosong dikembalikan apa adanya', () {
+      final cipher = NoteCipher(key);
+
+      expect(cipher.decryptOrKeep(''), '');
+    });
+  });
 }

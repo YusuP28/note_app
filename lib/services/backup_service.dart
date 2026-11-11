@@ -28,21 +28,15 @@ class BackupService {
 
   /// Direktori tujuan backup.
   ///
-  /// Default-nya folder APLIKASI (tidak bisa dibaca app lain), bukan
-  /// /sdcard/Download. Folder publik hanya dipakai kalau user benar-benar
-  /// minta ekspor ke lokasi yang bisa dipilihnya.
-  Future<Directory> _resolveBaseDir({bool preferPublic = false}) async {
-    if (preferPublic) {
-      final publicDir = Directory(_publicBackupPath);
-      if (await _ensureWritable(publicDir)) return publicDir;
-    }
-
+  /// Folder APLIKASI (tidak bisa dibaca app lain). Tidak ada lagi akses ke
+  /// storage eksternal: ekspor ke lokasi pilihan user memakai Storage Access
+  /// Framework (system file picker), jadi `MANAGE_EXTERNAL_STORAGE` tidak
+  /// diperlukan lagi.
+  Future<Directory> _resolveBaseDir() async {
     final documents = await getApplicationDocumentsDirectory();
     await documents.create(recursive: true);
     return documents;
   }
-
-  static const String _publicBackupPath = '/sdcard/Download/note_app';
 
   /// Ekstensi file backup terenkripsi.
   static const String _encryptedExt = '.nbak';
@@ -50,11 +44,26 @@ class BackupService {
   /// Ekstensi file backup lama (plaintext) - masih bisa di-restore.
   static const String _legacyExt = '.zip';
 
-  Future<String> exportAll({bool preferPublic = false}) async {
-    final dir = await _resolveBaseDir(preferPublic: preferPublic);
+  Future<String> exportAll() async {
+    final dir = await _resolveBaseDir();
     final file = File(
         '${dir.path}/note_app_backup_${DateTime.now().millisecondsSinceEpoch}.zip');
     return _exportTo(file.path);
+  }
+
+  /// Hasil ekspor backup sebagai bytes, tanpa menyisakan file di folder aplikasi.
+  ///
+  /// Dipakai untuk ekspor lewat Storage Access Framework: user memilih
+  /// lokasi file lewat system picker, lalu bytes-nya ditulis ke lokasi itu.
+  Future<Uint8List> exportAllBytes() async {
+    final path = await exportAll();
+    try {
+      return await readBytes(path);
+    } finally {
+      try {
+        await File(path).delete();
+      } catch (_) {}
+    }
   }
 
   /// Auto-backup harian. Simpan di folder khusus, rotasi max 7 file.
@@ -86,18 +95,6 @@ class BackupService {
   /// keberadaan file (`autoBackup`), supaya keduanya tidak bisa menyimpang.
   static String _encryptedPathFor(String targetPath) =>
       '${targetPath.replaceAll(RegExp(r'\.zip$'), '')}$_encryptedExt';
-
-  Future<bool> _ensureWritable(Directory dir) async {
-    try {
-      if (!await dir.exists()) await dir.create(recursive: true);
-      final probe = File(p.join(dir.path, '.note_app_write_test'));
-      await probe.writeAsString('ok', flush: true);
-      await probe.delete();
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
 
   Future<String> _exportTo(String targetPath) async {
     final db = await DatabaseService().database;

@@ -71,24 +71,19 @@ class NoteContentCipher {
   /// apa adanya - lebih baik menampilkan sandi daripada menghapus isi catatan.
   String decryptText(String value) {
     if (!isEnabled) return value;
-    if (value.isEmpty) return value;
-    if (!_cipher!.isEncrypted(value)) return value;
-    try {
-      return _cipher!.decrypt(value);
-    } catch (_) {
-      return value;
-    }
+    return _cipher!.decryptOrKeep(value);
   }
 
+  /// Dekripsi satu kolom, tanpa pernah menghapus isinya.
+  ///
+  /// Kalau dekripsi gagal, ciphertext ASLI dikembalikan apa adanya. Nilai
+  /// kosong akan membuat catatan terkunci yang tersimpan ulang menimpa isinya
+  /// yang asli dengan data kosong (data loss). Ciphertext yang masih utuh
+  /// bisa dikenali lewat `NoteCipher.isEncryptedText` supaya UI bisa
+  /// memberi tahu user.
   String _decryptOrKeep(String? value) {
     if (value == null || value.isEmpty) return value ?? '';
-    if (!_cipher!.isEncrypted(value)) return value;
-    try {
-      return _cipher!.decrypt(value);
-    } catch (_) {
-      // Kunci berubah / data rusak - jangan sampai app crash.
-      return '';
-    }
+    return _cipher!.decryptOrKeep(value);
   }
 
   /// Helper untuk JSON delta (konten Quill).

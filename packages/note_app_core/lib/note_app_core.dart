@@ -12,6 +12,7 @@ export 'src/note_cipher.dart';
 export 'src/note_list_state.dart';
 export 'src/note_search.dart';
 export 'src/pbkdf2.dart';
+export 'src/pin_policy.dart';
 export 'src/search_eligibility.dart';
 export 'src/search_highlight.dart';
 export 'src/sort_options.dart';

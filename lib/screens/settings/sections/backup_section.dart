@@ -42,12 +42,23 @@ class BackupSection extends StatelessWidget {
           ),
           onTap: () async {
             try {
-              final path = await BackupService().exportAll();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Backup: $path')),
-                );
-              }
+              final bytes = await BackupService().exportAllBytes();
+              final fileName =
+                  'note_app_backup_${DateTime.now().millisecondsSinceEpoch}.nbak';
+              // Storage Access Framework: user sendiri yang memilih lokasi
+              // file lewat system picker. Tidak butuh izin akses storage
+              // eksternal (MANAGE_EXTERNAL_STORAGE sudah dihapus).
+              final saved = await FilePicker.platform.saveFile(
+                dialogTitle: 'Simpan file backup',
+                fileName: fileName,
+                type: FileType.any,
+                bytes: bytes,
+              );
+              if (!context.mounted) return;
+              if (saved == null) return; // user membatalkan
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Backup tersimpan: $fileName')),
+              );
             } catch (e) {
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(

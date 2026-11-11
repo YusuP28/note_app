@@ -52,7 +52,16 @@ class LockService {
   }
 
   // ==== SET PIN ====
+  ///
+  /// PIN baru wajib memenuhi [PinPolicy] (6 digit, bukan pola mudah ditebak
+  /// seperti `123456` atau `111111`). PIN lama milik user yang sebelumnya
+  /// hanya 4 digit TETAP bisa dipakai untuk membuka aplikasi.
+  ///
+  /// Melempar [PinPolicyException] kalau PIN tidak memenuhi aturan.
   Future<String> setPin(String pin, {String? hint}) async {
+    final error = PinPolicy.validate(pin);
+    if (error != null) throw PinPolicyException(error);
+
     final p = await SharedPreferences.getInstance();
     final hash = await _derive(pin);
     final code = _generateBackupCode();
@@ -195,6 +204,11 @@ class LockService {
     String newPin, {
     String? hint,
   }) async {
+    // Validasi PIN BARUS lebih dulu. Kalau PIN-nya ditolak setelah backup
+    // code hangus, user kehilangan aksesnya tanpa mendapat PIN baru.
+    final error = PinPolicy.validate(newPin);
+    if (error != null) throw PinPolicyException(error);
+
     if (!await verifyBackupCode(code)) return null;
 
     // Backup code lama hangus - tidak bisa dipakai lagi.

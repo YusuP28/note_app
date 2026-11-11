@@ -46,6 +46,17 @@ class Note implements NoteLike {
     this.tagIds = const [],
   });
 
+  /// True kalau isi catatan masih berupa ciphertext.
+  ///
+  /// Setelah [NoteContentCipher.decryptRow], isi yang gagal didekripsi tetap
+  /// ciphertext (bukan string kosong - lihat fix data loss). Keadaan ini
+  /// berarti kunci berubah atau datanya rusak, jadi user harus diberi tahu
+  /// dan isi tidak boleh diperlakukan sebagai "kosong lalu disimpan ulang".
+  bool get decryptFailed =>
+      isLocked &&
+      (NoteCipher.isEncryptedText(content) ||
+          NoteCipher.isEncryptedText(plainText));
+
   Map<String, dynamic> toMap() => {
         'id': id,
         'title': title,
