@@ -1,8 +1,7 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+
+import 'attachment_file_store.dart';
 
 class ImageAttachmentService {
   static final ImageAttachmentService _i = ImageAttachmentService._();
@@ -57,30 +56,11 @@ class ImageAttachmentService {
 
   /// Copy file ke folder app biar permanen (galeri bisa dihapus user)
   Future<String?> _saveToApp(XFile file) async {
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final attDir = Directory('${dir.path}/attachments');
-      if (!await attDir.exists()) await attDir.create(recursive: true);
-
-      final ext = p.extension(file.path);
-      final name = 'img_${DateTime.now().millisecondsSinceEpoch}$ext';
-      final dest = '${attDir.path}/$name';
-
-      await File(file.path).copy(dest);
-      return dest;
-    } catch (e) {
-      debugPrint('_saveToApp error: $e');
-      return null;
-    }
+    return AttachmentFileStore.instance.saveFile(file.path);
   }
 
   /// Hapus file
   Future<void> deleteFile(String path) async {
-    try {
-      final f = File(path);
-      if (await f.exists()) await f.delete();
-    } catch (e) {
-      debugPrint('deleteFile error: $e');
-    }
+    return AttachmentFileStore.instance.deleteFile(path);
   }
 }

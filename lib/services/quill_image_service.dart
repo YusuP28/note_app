@@ -1,9 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+
+import 'attachment_file_store.dart';
 
 class QuillImageService {
   static final QuillImageService _i = QuillImageService._();
@@ -85,20 +84,6 @@ class QuillImageService {
   }
 
   Future<String?> _saveToApp(XFile file) async {
-    try {
-      final dir = await getApplicationDocumentsDirectory();
-      final attDir = Directory('${dir.path}/attachments');
-      if (!await attDir.exists()) await attDir.create(recursive: true);
-
-      final ext = p.extension(file.path);
-      final name = 'img_${DateTime.now().millisecondsSinceEpoch}$ext';
-      final dest = '${attDir.path}/$name';
-
-      await File(file.path).copy(dest);
-      return dest;
-    } catch (e) {
-      debugPrint('_saveToApp error: $e');
-      return null;
-    }
+    return AttachmentFileStore.instance.saveFile(file.path);
   }
 }
