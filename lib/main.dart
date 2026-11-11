@@ -32,6 +32,11 @@ Future<void> main() async {
   // Aktifkan enkripsi konten catatan terkunci (kunci dari Android Keystore).
   await DatabaseService().initContentCipher();
 
+  // Catatan yang dikunci SEBELUM fitur enkripsi aktif masih plaintext di
+  // SQLite (dan ikut ter-export ke backup). Enkripsi sekarang, sebelum
+  // auto-backup di bawah sempat menyalin baris tersebut.
+  await _encryptExistingLockedNotes();
+
   // SATU instance NoteProvider untuk seluruh aplikasi: dipakai provider tree
   // (lihat NoteApp) DAN auto-purge di bawah. Kalau purge memakai instance
   // sendiri, terjadi load penuh kedua di startup + instance yatim yang
@@ -88,6 +93,50 @@ Future<void> _requestPermissions() async {
     }
   } catch (e) {
     debugPrint('permission request error: $e');
+  }
+}
+
+/// Enkripsi catatan terkunci lama yang dibuat sebelum fitur enkripsi aktif.
+///
+/// Idempoten: hanya menulis baris yang isinya benar-benar berubah, sehingga
+/// aman dipanggil di setiap start. Kegagalan tidak boleh menggagalkan app -
+/// catatan lama tetap terbaca sebagai plaintext (jalur fallback `NoteCipher`).
+Future<void> _encryptExistingLockedNotes() async {
+  try {
+    final dbService = DatabaseService();
+    final cipher = dbService.cipher;
+    if (!cipher.isEnabled) return;
+
+    final db = await dbService.database;
+    final rows = await db.query(
+      'notes',
+      columns: ['id', 'content', 'plain_text', 'is_locked'],
+      where: 'is_locked = 1',
+    );
+
+    var updated = 0;
+    for (final row in rows) {
+      final encrypted = cipher.encryptRow(row);
+      if (encrypted['content'] == row['content'] &&
+          encrypted['plain_text'] == row['plain_text']) {
+        continue;
+      }
+      await db.update(
+        'notes',
+        {
+          'content': encrypted['content'],
+          'plain_text': encrypted['plain_text'],
+        },
+        where: 'id = ?',
+        whereArgs: [row['id']],
+      );
+      updated++;
+    }
+    if (updated > 0) {
+      debugPrint('backfill enkripsi: $updated catatan terkunci dienkripsi');
+    }
+  } catch (e) {
+    debugPrint('backfill enkripsi gagal: $e');
   }
 }
 

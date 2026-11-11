@@ -67,14 +67,25 @@ class BackupService {
       final today = DateTime.now();
       final stamp =
           '${today.year}${today.month.toString().padLeft(2, '0')}${today.day.toString().padLeft(2, '0')}';
-      final target = File('${backupDir.path}/backup_$stamp.zip');
+      // `_exportTo` selalu menulis file terenkripsi (`.nbak`). Guard harian
+      // harus memeriksa path yang SAMA - sebelumnya ia memeriksa `.zip` yang
+      // tidak pernah dibuat, sehingga auto-backup berjalan di setiap launch.
+      final targetPath = '${backupDir.path}/backup_$stamp.zip';
+      final target = File(_encryptedPathFor(targetPath));
 
       if (await target.exists()) return;
 
-      await _exportTo(target.path);
+      await _exportTo(targetPath);
       await _rotate(backupDir);
     } catch (_) {}
   }
+
+  /// Path file terenkripsi untuk sebuah target base: `...zip` -> `...nbak`.
+  ///
+  /// Satu sumber kebenaran untuk penulisan (`_exportTo`) dan pengecekan
+  /// keberadaan file (`autoBackup`), supaya keduanya tidak bisa menyimpang.
+  static String _encryptedPathFor(String targetPath) =>
+      '${targetPath.replaceAll(RegExp(r'\.zip$'), '')}$_encryptedExt';
 
   Future<bool> _ensureWritable(Directory dir) async {
     try {
@@ -153,8 +164,7 @@ class BackupService {
       final sealed = BackupEnvelope.seal(await rawZip.readAsBytes(), passphrase);
 
       // 3. Tulis hasil enkripsi. Ekstensi .nbak menandai file terenkripsi.
-      final encryptedTarget =
-          File(targetPath.replaceAll(RegExp(r'\.zip$'), '') + _encryptedExt);
+      final encryptedTarget = File(_encryptedPathFor(targetPath));
       await encryptedTarget.writeAsString(sealed, flush: true);
 
       return encryptedTarget.path;
@@ -280,11 +290,18 @@ class BackupService {
       }
 
       var importedNotes = 0;
+      final cipher = DatabaseService().cipher;
       final notes = (data['notes'] as List?) ?? [];
       for (final row in notes) {
-        final note = _importNote(
-          Map<String, dynamic>.from(row as Map),
-          attachmentsRoot,
+        // Baris dari backup plaintext (format lama) belum terenkripsi. Tanpa
+        // ini, catatan terkunci hasil restore masuk DB sebagai plaintext dan
+        // membatalkan K2. `encryptRow` idempoten: ciphertext dari backup baru
+        // dilewati apa adanya.
+        final note = cipher.encryptRow(
+          _importNote(
+            Map<String, dynamic>.from(row as Map),
+            attachmentsRoot,
+          ),
         );
         final exists = await txn.query(
           'notes',
