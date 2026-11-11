@@ -94,6 +94,38 @@ void main() {
       expect(root, '${fakeDocs.path}/attachments');
     });
 
+    test('attachmentsRoot membuat folder attachments kalau belum ada', () async {
+      final attachments = Directory('${fakeDocs.path}/attachments');
+      expect(attachments.existsSync(), isFalse);
+
+      final root = await AttachmentFileStore.instance.attachmentsRoot();
+
+      expect(Directory(root).existsSync(), isTrue);
+    });
+
+    test('attachmentsRoot idempoten saat dipanggil berkali-kali', () async {
+      final rootA = await AttachmentFileStore.instance.attachmentsRoot();
+      final rootB = await AttachmentFileStore.instance.attachmentsRoot();
+
+      expect(rootA, rootB);
+      expect(Directory(rootA).existsSync(), isTrue);
+    });
+
+    test('saveFile tetap bisa dipakai setelah folder attachments dihapus manual', () async {
+      final source = File('${sourceDir.path}/folder.png')
+        ..writeAsBytesSync(<int>[1, 2]);
+
+      // Pastikan folder pernah dibuat, lalu hapus manual supaya
+      // ensure-pembuatan folder diuji ulang oleh `saveFile`.
+      final root = await AttachmentFileStore.instance.attachmentsRoot();
+      Directory(root).deleteSync(recursive: true);
+
+      final hasil = await AttachmentFileStore.instance.saveFile(source.path);
+
+      expect(hasil, isNotNull);
+      expect(File(hasil!).existsSync(), isTrue);
+    });
+
     test('deleteFile menghapus file yang ada dan aman kalau file hilang', () async {
       final source = File('${sourceDir.path}/hapus.png')
         ..writeAsBytesSync(<int>[7]);

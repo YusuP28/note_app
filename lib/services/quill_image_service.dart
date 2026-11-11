@@ -22,7 +22,7 @@ class QuillImageService {
       );
       if (files.isEmpty) return;
       for (final f in files) {
-        final saved = await _saveToApp(f);
+        final saved = await AttachmentFileStore.instance.saveFile(f.path);
         if (saved != null) _insertImageBlock(controller, saved);
       }
     } catch (e) {
@@ -38,7 +38,7 @@ class QuillImageService {
         maxWidth: _useOriginal ? null : 1920,
       );
       if (f == null) return;
-      final saved = await _saveToApp(f);
+      final saved = await AttachmentFileStore.instance.saveFile(f.path);
       if (saved != null) _insertImageBlock(controller, saved);
     } catch (e) {
       debugPrint('insertFromCamera error: $e');
@@ -81,9 +81,5 @@ class QuillImageService {
       '\n',
       TextSelection.collapsed(offset: insertAt + 2),
     );
-  }
-
-  Future<String?> _saveToApp(XFile file) async {
-    return AttachmentFileStore.instance.saveFile(file.path);
   }
 }

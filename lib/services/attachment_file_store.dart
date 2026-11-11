@@ -8,7 +8,7 @@ import 'package:path_provider/path_provider.dart';
 ///
 /// Dulu method `_saveToApp` ada duplikat 100% di
 /// `image_attachment_service.dart` dan `quill_image_service.dart`.
-/// Sekarang keduanya memakai store ini.
+/// Sekarang keduanya memanggil store ini langsung, tanpa wrapper.
 ///
 /// Format nama file TIDAK boleh diubah:
 /// `img_<millisecondsSinceEpoch><ext>` di dalam folder
@@ -21,15 +21,17 @@ class AttachmentFileStore {
   static const String _attachmentsFolder = 'attachments';
 
   /// Path absolut folder tempat file lampiran disimpan.
+  ///
+  /// Side-effect: folder dipastikan ada (`mkdir` tunggal, idempoten).
   Future<String> attachmentsRoot() async {
     final documents = await getApplicationDocumentsDirectory();
     final root = Directory(p.join(documents.path, _attachmentsFolder));
-    if (!root.existsSync()) {
-      try {
-        await root.create(recursive: true);
-      } catch (e) {
-        debugPrint('attachmentsRoot create error: $e');
-      }
+    try {
+      // `create(recursive: true)` tidak error kalau folder sudah ada,
+      // jadi cukup satu pemanggilan (tidak perlu cek `exists` terpisah).
+      await root.create(recursive: true);
+    } catch (e) {
+      debugPrint('attachmentsRoot create error: $e');
     }
     return root.path;
   }
@@ -43,12 +45,13 @@ class AttachmentFileStore {
       final source = File(sourcePath);
       if (!await source.exists()) return null;
 
-      final attDir = Directory(await attachmentsRoot());
-      if (!await attDir.exists()) await attDir.create(recursive: true);
+      // `attachmentsRoot()` sudah memastikan folder ada — tidak perlu
+      // cek-buat folder kedua kali di sini.
+      final root = await attachmentsRoot();
 
       final ext = p.extension(sourcePath);
       final name = 'img_${DateTime.now().millisecondsSinceEpoch}$ext';
-      final dest = p.join(attDir.path, name);
+      final dest = p.join(root, name);
 
       await source.copy(dest);
       return dest;

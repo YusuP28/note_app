@@ -27,7 +27,7 @@ class ImageAttachmentService {
       if (files.isEmpty) return [];
       final saved = <String>[];
       for (final f in files) {
-        final path = await _saveToApp(f);
+        final path = await AttachmentFileStore.instance.saveFile(f.path);
         if (path != null) saved.add(path);
       }
       return saved;
@@ -47,20 +47,10 @@ class ImageAttachmentService {
         maxWidth: useOriginal ? null : 1920,
       );
       if (f == null) return null;
-      return await _saveToApp(f);
+      return await AttachmentFileStore.instance.saveFile(f.path);
     } catch (e) {
       debugPrint('pickFromCamera error: $e');
       return null;
     }
-  }
-
-  /// Copy file ke folder app biar permanen (galeri bisa dihapus user)
-  Future<String?> _saveToApp(XFile file) async {
-    return AttachmentFileStore.instance.saveFile(file.path);
-  }
-
-  /// Hapus file
-  Future<void> deleteFile(String path) async {
-    return AttachmentFileStore.instance.deleteFile(path);
   }
 }
