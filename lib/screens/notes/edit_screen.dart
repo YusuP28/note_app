@@ -80,14 +80,7 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
     // disorot saat pencarian juga sandi, bukan isi catatan.
     _contentJson = _decryptContent(_working.content);
     _contentCtrl = _buildQuillController(_contentJson);
-    if (widget.readOnly) _contentCtrl.readOnly = true;
-    // Isi yang gagal didekripsi (kunci enkripsi berubah / data rusak)
-    // ditampilkan read-only. Menapezeditnya hanya berisiko isi asli
-    // ditimpa, padahal isinya masih utuh di database.
-    if (_working.decryptFailed) {
-      _contentCtrl.readOnly = true;
-      _titleCtrl.readOnly = true;
-    }
+    if (widget.readOnly) _contentCtrl = QuillController(readOnly: true);
 
     _reminder = _working.reminderAt;
     _bgImagePath = _working.bgImagePath;
