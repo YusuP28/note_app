@@ -200,9 +200,7 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
     // Ambil style dari teks placeholder atau teks judul yang sudah pasti ada
     final textStyle = TextStyle(
       fontSize: 15, // Default quill font size analog
-      fontFamily: _contentCtrl.document.direction == TextDirection.ltr
-          ? 'Roboto'
-          : 'Noto Sans',
+      fontFamily: 'Roboto',
     );
     final double baseline = -textStyle.fontSize! * 0.2; // approximation
     return textStyle.fontSize! + baseline;
