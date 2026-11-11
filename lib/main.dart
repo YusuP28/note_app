@@ -15,6 +15,7 @@ import 'services/backup_service.dart';
 import 'services/auto_backup_service.dart';
 import 'services/database_service.dart';
 import 'services/image_attachment_service.dart';
+import 'services/trash_purge_service.dart';
 import 'themes/app_theme.dart';
 import 'utils/locale_init.dart';
 import 'widgets/global_background.dart';
@@ -30,6 +31,14 @@ Future<void> main() async {
 
   // Aktifkan enkripsi konten catatan terkunci (kunci dari Android Keystore).
   await DatabaseService().initContentCipher();
+
+  // Auto-purge sampah lama (> 30 hari) - otomatis, bukan hanya tombol manual
+  // di Settings. Kegagalan tidak boleh menggagalkan start aplikasi.
+  try {
+    await TrashPurgeService().runIfDue(days: 30);
+  } catch (e) {
+    debugPrint('auto-purge gagal: $e');
+  }
 
   await BackupService().autoBackup();
 
