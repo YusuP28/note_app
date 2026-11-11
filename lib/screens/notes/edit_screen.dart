@@ -80,7 +80,6 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
     // disorot saat pencarian juga sandi, bukan isi catatan.
     _contentJson = _decryptContent(_working.content);
     _contentCtrl = _buildQuillController(_contentJson);
-    if (widget.readOnly) _contentCtrl = QuillController(readOnly: true);
 
     _reminder = _working.reminderAt;
     _bgImagePath = _working.bgImagePath;
