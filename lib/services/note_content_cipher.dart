@@ -61,6 +61,25 @@ class NoteContentCipher {
     return _cipher!.encrypt(value);
   }
 
+  /// Dekripsi satu teks bila masih berupa ciphertext.
+  ///
+  /// Dipakai oleh editor: konten catatan terkunci harus didekripsi **sebelum**
+  /// dirender dan sebelum di-highlight, supaya yang tampil (dan yang disorot)
+  /// adalah isi catatan, bukan sandi.
+  ///
+  /// Kalau dekripsi gagal (kunci berubah / data rusak), nilai asli dikembalikan
+  /// apa adanya - lebih baik menampilkan sandi daripada menghapus isi catatan.
+  String decryptText(String value) {
+    if (!isEnabled) return value;
+    if (value.isEmpty) return value;
+    if (!_cipher!.isEncrypted(value)) return value;
+    try {
+      return _cipher!.decrypt(value);
+    } catch (_) {
+      return value;
+    }
+  }
+
   String _decryptOrKeep(String? value) {
     if (value == null || value.isEmpty) return value ?? '';
     if (!_cipher!.isEncrypted(value)) return value;

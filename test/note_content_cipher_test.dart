@@ -101,6 +101,64 @@ void main() {
     });
   });
 
+  group('NoteContentCipher.decryptText', () {
+    final key = List<int>.generate(32, (i) => i + 1);
+
+    test('teks terenkripsi dikembalikan jadi plaintext', () async {
+      final cipher = await NoteContentCipher.fromKey(key);
+      final row = <String, dynamic>{
+        'content': '{"ops":[{"insert":"rahasia"}]}',
+        'plain_text': 'rahasia',
+        'is_locked': 1,
+      };
+      final encrypted = cipher.encryptRow(row);
+
+      expect(
+        cipher.decryptText(encrypted['content'] as String),
+        '{"ops":[{"insert":"rahasia"}]}',
+      );
+    });
+
+    test('teks plaintext dikembalikan apa adanya', () async {
+      final cipher = await NoteContentCipher.fromKey(key);
+
+      expect(cipher.decryptText('biasa saja'), 'biasa saja');
+    });
+
+    test('teks kosong dikembalikan apa adanya', () async {
+      final cipher = await NoteContentCipher.fromKey(key);
+
+      expect(cipher.decryptText(''), '');
+    });
+
+    test('cipher disabled tidak mengubah teks', () {
+      final cipher = NoteContentCipher.disabled();
+
+      expect(cipher.decryptText('NBNOTE1.abc.def'), 'NBNOTE1.abc.def');
+    });
+
+    test(
+      'dekripsi gagal tidak menghapus isi (nilai asli dikembalikan)',
+      () async {
+        final cipher = await NoteContentCipher.fromKey(key);
+        // Ciphertext dengan kunci yang salah -> dekripsi harus gagal, bukan
+        // menghasilkan string kosong yang bisa menimpa isi catatan.
+        final lain = await NoteContentCipher.fromKey(
+          List<int>.generate(32, (i) => 200 - i),
+        );
+        final row = <String, dynamic>{
+          'content': 'rahasia',
+          'plain_text': 'rahasia',
+          'is_locked': 1,
+        };
+        final encrypted = lain.encryptRow(row);
+        final ciphertext = encrypted['content'] as String;
+
+        expect(cipher.decryptText(ciphertext), ciphertext);
+      },
+    );
+  });
+
   group('BackupPassphraseService', () {
     test('passphrase default minimal 8 karakter', () {
       expect(BackupPassphraseService.generatePassphrase().length,

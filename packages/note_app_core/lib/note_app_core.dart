@@ -13,4 +13,5 @@ export 'src/note_list_state.dart';
 export 'src/note_search.dart';
 export 'src/pbkdf2.dart';
 export 'src/search_eligibility.dart';
+export 'src/search_highlight.dart';
 export 'src/sort_options.dart';

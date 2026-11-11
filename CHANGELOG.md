@@ -13,7 +13,7 @@ Versioning: [Semantic Versioning](https://semver.org/)
 - **Enkripsi konten catatan terkunci** — kolom `content` + `plain_text` di SQLite dienkripsi, kunci disimpan di Android Keystore (flutter_secure_storage)
 - **Passphrase Backup** di Settings — lihat / buat / ganti passphrase; restore dari perangkat lain bisa input passphrase
 - **`packages/note_app_core`** — package pure-Dart berisi logika keamanan (BackupCrypto, BackupEnvelope, NoteCipher, MediaPathGuard, LockoutPolicy, Pbkdf2) yang bisa diuji tanpa Flutter SDK
-- **Test suite** — 14 test app (`flutter test`) + 45 test core (`dart test`)
+- **Test suite** — 65 test app (`flutter test`) + 95 test core (`dart test`)
 - **CI quality gate** — `flutter analyze` + `flutter test` + `dart test` jalan sebelum build APK
 - **`network_security_config.xml`** — cleartext traffic dinonaktifkan
 - **`FLAG_SECURE`** — cegah screenshot & pratinjau Recent Apps
@@ -26,6 +26,10 @@ Versioning: [Semantic Versioning](https://semver.org/)
 - **`signInSilently()` tidak lagi dipanggil otomatis** saat app launch — koneksi ke Google hanya saat user memakai fitur Drive
 
 ### Diperbaiki
+- **Highlight pencarian tak terbaca di tema gelap** — teks di atas highlight kuning sekarang dipaksa hitam (sebelumnya warna teks ikut tema, putih di tema gelap)
+- **Highlight pada catatan terkunci** — konten didekripsi sebelum dokumen editor dibangun, jadi yang dirender dan disorot adalah isi catatan, bukan sandi
+- **Posisi highlight tidak lagi bergeser** — pencarian kata kunci kini dicocokkan per karakter tanpa memakai salinan lowercase, sehingga offset highlight tetap akurat (mis. teks berhuruf 'İ')
+- **Highlight hilang saat draft dipulihkan** — draft yang menggantikan isi dokumen kini memicu perhitungan ulang posisi highlight
 - **Path traversal saat restore** — path media dari file backup sekarang divalidasi (`p.isWithin`); nilai `../` dari file backup yang dikontrol penyerang ditolak
 - Urutan restore backup: notebook → tag → catatan → relasi tag → lampiran (sebelumnya catatan di-insert sebelum notebook)
 - Auto-backup, backup lokal, dan Google Drive sekarang menyertakan lampiran media
