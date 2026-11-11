@@ -272,4 +272,28 @@ class BackupSection extends StatelessWidget {
       ),
     );
   }
+
+  /// Menampilkan dialog opsi restore: kembali ke file picker biasa atau lanjut ke manual.
+  Future<String?> _showRestoreOptionsDialog(BuildContext context) async {
+    return await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Pilih Cara Restore'),
+        content: const Text(
+          'File backup tidak ditemukan di path sebelumnya. Apakah Anda ingin memilih file secara manual?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'manual'),
+            child: const Text('Pilih File Manual'),
+          ),
+        ],
+      ),
+    ) ??
+        null;
+  }
 }

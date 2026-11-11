@@ -180,15 +180,32 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
       quill.ChangeSource.local,
     );
     // Scroll controller juga
+    // Gunakan tinggi per karakter sesungguhnya dari Quill document rather than
+    // estimasi *20, agar akurat untuk berbagai ukuran font dan tema.
+    final charHeight = _getCharHeight();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollCtrl.hasClients) {
         _scrollCtrl.animateTo(
-          offset.toDouble() * 20.0, // Estimasi tinggi per karakter
+          offset.toDouble() * charHeight,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
       }
     });
+  }
+
+  /// Mengambil tinggi per karakter dari dokumen Quill saat ini.
+  /// Menggunakan nilai dari placeholder text style sebagai referensi.
+  double _getCharHeight() {
+    // Ambil style dari teks placeholder atau teks judul yang sudah pasti ada
+    final textStyle = TextStyle(
+      fontSize: 15, // Default quill font size analog
+      fontFamily: _contentCtrl.document.direction == TextDirection.ltr
+          ? 'Roboto'
+          : 'Noto Sans',
+    );
+    final double baseline = -textStyle.fontSize! * 0.2; // approximation
+    return textStyle.fontSize! + baseline;
   }
 
   quill.QuillController _buildQuillController(String content) {
