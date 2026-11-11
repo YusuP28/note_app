@@ -249,21 +249,18 @@ void main() {
       expect(_urutkan(semua, SortBy.titleDesc), <String>['Charlie', 'Bravo', 'Alpha']);
     });
 
-    test('catatan disematkan di atas untuk urutan waktu', () {
-      for (final sortBy in <SortBy>[
-        SortBy.updatedDesc,
-        SortBy.updatedAsc,
-        SortBy.createdDesc,
-        SortBy.createdAsc,
-      ]) {
+    test('catatan disematkan di atas untuk semua SortBy', () {
+      for (final sortBy in SortBy.values) {
         final hasil = _urutkan(<_Catatan>[a, b, pinned], sortBy);
         expect(hasil.first, 'Zulu', reason: 'pinned harus di atas untuk $sortBy');
       }
     });
 
-    test('urutan judul murni judul tanpa pemisahan pinned', () {
+    test('urutan judul tetap menyematkan catatan di atas', () {
       final hasil = _urutkan(<_Catatan>[pinned, a], SortBy.titleAsc);
-      expect(hasil, <String>['Bravo', 'Zulu']);
+      expect(hasil, <String>['Zulu', 'Bravo']);
+      expect(_urutkan(<_Catatan>[pinned, a], SortBy.titleDesc),
+          <String>['Zulu', 'Bravo']);
     });
 
     test('filter arsip dan sampah tidak memisahkan pinned di atas', () {

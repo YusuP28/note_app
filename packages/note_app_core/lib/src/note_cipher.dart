@@ -25,5 +25,12 @@ class NoteCipher {
   }
 
   /// Apakah nilai ini hasil enkripsi NoteCipher?
-  bool isEncrypted(String value) => value.startsWith(BackupCrypto.magic);
+  bool isEncrypted(String value) => NoteCipher.isEncryptedText(value);
+
+  /// Apakah nilai ini tampak seperti ciphertext hasil enkripsi NoteCipher?
+  ///
+  /// Bisa dipakai tanpa instance NoteCipher (mis. untuk memeriksa nilai yang
+  /// diambil langsung dari database sebelum didekripsi).
+  static bool isEncryptedText(String value) =>
+      value.startsWith(BackupCrypto.magic);
 }

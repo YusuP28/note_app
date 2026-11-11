@@ -9,6 +9,8 @@ export 'src/backup_envelope.dart';
 export 'src/lockout_policy.dart';
 export 'src/media_path_guard.dart';
 export 'src/note_cipher.dart';
+export 'src/note_list_state.dart';
 export 'src/note_search.dart';
 export 'src/pbkdf2.dart';
+export 'src/search_eligibility.dart';
 export 'src/sort_options.dart';

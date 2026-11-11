@@ -73,8 +73,9 @@ List<T> applyNoteFilters<T>(
 /// [filter] adalah [NoteFilter.all] atau [NoteFilter.pinned] - jadi saat
 /// pengguna melihat arsip/sampah, urutan murni mengikuti [sortBy].
 ///
-/// Pengurutan judul ([SortBy.titleAsc] / [SortBy.titleDesc]) juga murni
-/// judul: tidak ada pemisahan pinned, jadi daftarnya benar-benar terurut A-Z.
+/// Pengurutan judul ([SortBy.titleAsc] / [SortBy.titleDesc]) juga memakai
+/// pemisahan pinned yang sama - konsisten dengan perilaku aplikasi sebelum
+/// logika ini diekstrak ke package core.
 ///
 /// [isPinned] boleh `null` kalau pemanggil tidak butuh pemisahan pinned.
 List<T> sortNotes<T>(
@@ -85,10 +86,8 @@ List<T> sortNotes<T>(
   bool Function(T)? isPinned,
 }) {
   final daftar = List<T>.of(notes);
-  final bool judulMurni = sortBy == SortBy.titleAsc || sortBy == SortBy.titleDesc;
-  final bool pinnedDiAtas = !judulMurni &&
-      isPinned != null &&
-      (filter == NoteFilter.all || filter == NoteFilter.pinned);
+  final bool pinnedDiAtas =
+      isPinned != null && (filter == NoteFilter.all || filter == NoteFilter.pinned);
   daftar.sort((a, b) {
     if (pinnedDiAtas) {
       final aPinned = isPinned(a);

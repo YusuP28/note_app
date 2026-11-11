@@ -25,29 +25,28 @@ class NoteProvider extends ChangeNotifier {
   final _uuid = const Uuid();
 
   List<Note> _notes = [];
-  List<Note> _filtered = [];
-  // Hasil pencarian yang sedang aktif. `null` = tidak ada pencarian aktif,
-  // sehingga `notes` menampilkan daftar utama.
-  List<Note>? _searchResults;
+  // State daftar (normal + hasil pencarian aktif) dikelola di package core
+  // supaya aturannya bisa diuji tanpa database.
+  final NoteListState<Note> _listState = NoteListState<Note>();
   NoteFilter _filter = NoteFilter.all;
   String? _notebookIdFilter;
   String? _tagIdFilter;
-  String _query = '';
   bool _loading = false;
   String? _error;
   SortBy _sortBy = SortBy.updatedDesc;
-  // Token untuk membatalkan hasil pencarian yang sudah basi (race async).
-  int _searchToken = 0;
   bool _disposed = false;
 
-  List<Note> get notes => List.unmodifiable(_searchResults ?? _filtered);
+  List<Note> get notes => _listState.notes;
   NoteFilter get filter => _filter;
   String? get notebookIdFilter => _notebookIdFilter;
   String? get tagIdFilter => _tagIdFilter;
-  String get query => _query;
+  String get query => _listState.query;
   bool get loading => _loading;
   String? get error => _error;
   SortBy get sortBy => _sortBy;
+
+  /// Apakah sedang ada pencarian yang belum selesai?
+  bool get searching => _listState.searching;
 
   /// Hapus hasil pencarian aktif dan kembalikan daftar ke kondisi normal.
   ///
@@ -55,9 +54,7 @@ class NoteProvider extends ChangeNotifier {
   /// hasil pencarian.
   void clearSearch() {
     if (_disposed) return;
-    _searchToken++;
-    _searchResults = null;
-    _query = '';
+    _listState.clearSearch();
     notifyListeners();
   }
 
@@ -72,15 +69,7 @@ class NoteProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final db = await _db.database;
-      final rows = await db.query('notes');
-      _notes = [];
-      for (final r in rows) {
-        final tagRows = await db.query('note_tags',
-            columns: ['tag_id'], where: 'note_id = ?', whereArgs: [r['id']]);
-        final tags = tagRows.map((e) => e['tag_id'] as String).toList();
-        _notes.add(Note.fromMap(_db.cipher.decryptRow(r), tags: tags));
-      }
+      _notes = await muatDaftar();
       _applyFilter();
     } catch (e, st) {
       _error = 'Load gagal: $e';
@@ -91,10 +80,53 @@ class NoteProvider extends ChangeNotifier {
     }
   }
 
+  /// Ambil seluruh catatan dari penyimpanan.
+  ///
+  /// Dipisah supaya bisa diuji tanpa database (sqflite butuh native, tidak
+  /// tersedia di `flutter test`).
+  @visibleForTesting
+  Future<List<Note>> muatDaftar() async {
+    final db = await _db.database;
+    final rows = await db.query('notes');
+    final hasil = <Note>[];
+    for (final r in rows) {
+      final tagRows = await db.query('note_tags',
+          columns: ['tag_id'], where: 'note_id = ?', whereArgs: [r['id']]);
+      final tags = tagRows.map((e) => e['tag_id'] as String).toList();
+      hasil.add(Note.fromMap(_db.cipher.decryptRow(r), tags: tags));
+    }
+    return hasil;
+  }
+
+  /// Ambil baris mentah catatan yang cocok dengan kata kunci [query].
+  ///
+  /// Dipisah supaya bisa diuji tanpa database (sqflite butuh native, tidak
+  /// tersedia di `flutter test`).
+  @visibleForTesting
+  Future<List<Map<String, Object?>>> ambilBarisPencarian(String query) async {
+    final db = await _db.database;
+    final esc = query
+        .replaceAll(r'\', r'\\')
+        .replaceAll('%', r'\%')
+        .replaceAll('_', r'\_');
+    final like = '%$esc%';
+    // Kandidat diambil lebih luas: hanya sampah yang dikecualikan di SQL.
+    // Status lain (arsip, pinned, semua) disaring lagi di Dart lewat
+    // `applyNoteFilters` dengan filter yang sedang aktif.
+    final rows = await db.rawQuery(
+      "SELECT n.*, "
+      "(SELECT GROUP_CONCAT(tag_id) FROM note_tags WHERE note_id = n.id) "
+      "AS tag_ids "
+      "FROM notes n "
+      "WHERE n.is_trashed = 0 "
+      "AND (n.title LIKE ? ESCAPE '\\' OR n.plain_text LIKE ? ESCAPE '\\')",
+      [like, like],
+    );
+    return rows;
+  }
+
   void setFilter(NoteFilter f) {
     _filter = f;
-    // Berpindah tampilan utama berarti pencarian yang sedang aktif selesai.
-    _searchResults = null;
     _applyFilter();
     notifyListeners();
   }
@@ -118,75 +150,47 @@ class NoteProvider extends ChangeNotifier {
       clearSearch();
       return;
     }
-    _query = query;
-    final token = ++_searchToken;
-    // Jangan tampilkan daftar utama selama pencarian baru berjalan.
-    _searchResults ??= const <Note>[];
+    final token = _listState.mulaiPencarian(query);
     try {
-      final db = await _db.database;
-      final esc = query
-          .replaceAll(r'\', r'\\')
-          .replaceAll('%', r'\%')
-          .replaceAll('_', r'\_');
-      final like = '%$esc%';
-      final rows = await db.rawQuery(
-        "SELECT n.*, "
-        "(SELECT GROUP_CONCAT(tag_id) FROM note_tags WHERE note_id = n.id) "
-        "AS tag_ids "
-        "FROM notes n "
-        "WHERE n.is_trashed = 0 AND n.is_archived = 0 "
-        "AND (n.title LIKE ? ESCAPE '\\' OR n.plain_text LIKE ? ESCAPE '\\')",
-        [like, like],
-      );
-      if (token != _searchToken) return; // hasil basi, abaikan
+      final rows = await ambilBarisPencarian(query);
+      if (_listState.isStale(token)) return; // hasil basi, abaikan
       final hasil = <Note>[];
       for (final r in rows) {
         final row = _db.cipher.decryptRow(r);
         // Catatan terkunci: isi di database berupa ciphertext, sehingga hasil
-        // LIKE bisa saja bukan teks yang dicari. Buang baris yang isinya masih
-        // ciphertext atau yang isinya tidak mengandung kata kunci -> ciphertext
-        // tidak pernah tampil di UI.
-        if (!_layakTampil(r, row, query)) continue;
+        // LIKE bisa saja bukan teks yang dicari. Buang baris yang isinya tidak
+        // benar-benar mengandung kata kunci -> ciphertext tidak pernah tampil
+        // di UI, tapi catatan terkunci yang cocok lewat JUDUL tetap ditemukan.
+        if (!catatanLayakTampil(
+          judul: row['title'] as String?,
+          plainTersimpan: r['plain_text'] as String?,
+          plainDidekripsi: row['plain_text'] as String?,
+          query: query,
+        )) {
+          continue;
+        }
         final rawTags = r['tag_ids'] as String?;
         final tags = rawTags == null || rawTags.isEmpty
             ? const <String>[]
             : rawTags.split(',');
         hasil.add(Note.fromMap(row, tags: tags));
       }
-      // Hasil pencarian ikut filter notebook/tag yang sedang aktif dan diurutkan
-      // dengan aturan yang sama seperti daftar utama.
-      _searchResults = _saringDanUrutkan(hasil, NoteFilter.all);
+      // Hasil pencarian ikut filter status/notebook/tag yang sedang aktif dan
+      // diurutkan dengan aturan yang sama seperti daftar utama.
+      _listState.setSearchResults(_saringDanUrutkan(hasil, _filter));
     } catch (e) {
-      if (token != _searchToken) return;
-      _searchResults = [];
+      if (_listState.isStale(token)) return;
+      _listState.setSearchResults([]);
       debugPrint('search error: $e');
     }
     notifyListeners();
   }
 
-  /// Apakah baris hasil pencarian boleh ditampilkan?
-  ///
-  /// Kalau isi catatan di database masih ciphertext (catatan terkunci), LIKE
-  /// hanya cocok secara kebetulan - isi yang sudah didekripsi harus benar-benar
-  /// mengandung kata kunci. Kalau tidak bisa didekripsi sama sekali, baris
-  /// dibuang supaya ciphertext tidak pernah tampil di UI.
-  static bool _layakTampil(
-    Map<String, dynamic> baris,
-    Map<String, dynamic> didekripsi,
-    String query,
-  ) {
-    final tersimpan = (baris['plain_text'] as String?) ?? '';
-    final isi = (didekripsi['plain_text'] as String?) ?? '';
-    if (!tersimpan.startsWith(BackupCrypto.magic)) return true; // isi biasa
-    if (tersimpan == isi) return false; // gagal didekripsi -> jangan tampilkan
-    return isi.toLowerCase().contains(query.toLowerCase());
-  }
-
   void _applyFilter() {
-    _filtered = _saringDanUrutkan(_notes, _filter);
-    if (_searchResults != null) {
+    _listState.setNormal(_saringDanUrutkan(_notes, _filter));
+    if (_listState.hasSearch) {
       // Filter/urutan berubah -> segarkan hasil pencarian yang aktif.
-      unawaited(search(_query));
+      unawaited(search(_listState.query));
     }
   }
 
