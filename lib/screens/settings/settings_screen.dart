@@ -2,27 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:note_app_core/note_app_core.dart';
 
-import '../../providers/theme_provider.dart';
 import '../../providers/settings_provider.dart';
-import '../../providers/note_provider.dart';
-import '../../services/backup_service.dart';
-import '../../services/backup_passphrase_service.dart';
 import '../../services/alarm_service.dart';
 import '../../services/image_attachment_service.dart';
-import '../../services/lock_service.dart';
 import '../drive/drive_backup_screen.dart';
-import '../../themes/neumo.dart';
 import '../../utils/app_routes.dart';
-import '../../widgets/background_sheet.dart';
+import 'sections/appearance_section.dart';
+import 'sections/backup_section.dart';
+import 'sections/security_section.dart';
+import 'sections/section_header.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
     final settings = Provider.of<SettingsProvider>(context);
 
     return Scaffold(
@@ -37,60 +32,12 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         children: [
           // ============ TAMPILAN ============
-          _section(context, 'Tampilan'),
-          SwitchListTile(
-            secondary: const Icon(Icons.dark_mode_outlined),
-            title: const Text('Mode Gelap'),
-            value: themeProvider.isDark,
-            onChanged: (val) => themeProvider.setMode(
-              val ? ThemeMode.dark : ThemeMode.light,
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.wallpaper_outlined),
-            title: const Text('Background Aplikasi (Global)'),
-            subtitle: Text(
-              settings.hasGlobalBackground
-                  ? 'Aktif • transparansi ${(settings.globalBgOpacity * 100).round()}%'
-                  : 'Tidak aktif',
-            ),
-            onTap: () => showBackgroundSheet(
-              context,
-              title: 'Background Aplikasi (Global)',
-              hasBackground: settings.hasGlobalBackground,
-              backgroundPath: settings.globalBgPath,
-              opacity: settings.globalBgOpacity,
-              opacityTitle: 'Transparansi Background Global',
-              onPick: (path) => settings.setGlobalBackground(path),
-              onOpacity: (value) => settings.setGlobalBackgroundOpacity(value),
-              onRemove: () => settings.setGlobalBackground(null),
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.menu_outlined),
-            title: const Text('Background Sidebar (Drawer)'),
-            subtitle: Text(
-              settings.hasDrawerBackground
-                  ? 'Aktif • transparansi ${(settings.drawerBgOpacity * 100).round()}%'
-                  : 'Tidak aktif',
-            ),
-            onTap: () => showBackgroundSheet(
-              context,
-              title: 'Background Sidebar (Drawer)',
-              hasBackground: settings.hasDrawerBackground,
-              backgroundPath: settings.drawerBgPath,
-              opacity: settings.drawerBgOpacity,
-              opacityTitle: 'Transparansi Background Sidebar',
-              onPick: (path) => settings.setDrawerBackground(path),
-              onOpacity: (value) => settings.setDrawerBackgroundOpacity(value),
-              onRemove: () => settings.setDrawerBackground(null),
-            ),
-          ),
+          const AppearanceSection(),
 
           const Divider(),
 
           // ============ NOTIFIKASI ============
-          _section(context, 'Notifikasi & Alarm'),
+          const SettingsSectionHeader('Notifikasi & Alarm'),
           ListTile(
             leading: const Icon(Icons.music_note_outlined),
             title: const Text('Suara Alarm'),
@@ -129,18 +76,18 @@ class SettingsScreen extends StatelessWidget {
             leading: const Icon(Icons.alarm),
             title: const Text('Test Alarm Sekarang'),
             subtitle: const Text('Uji notifikasi full-screen + suara'),
-onTap: () async {
-            try {
-              final ok = await AlarmService().testNow();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(ok ? 'Test alarm dipicu!' : 'Gagal.')),
-                );
+            onTap: () async {
+              try {
+                final ok = await AlarmService().testNow();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(ok ? 'Test alarm dipicu!' : 'Gagal.')),
+                  );
+                }
+              } catch (e) {
+                debugPrint('test alarm error: $e');
               }
-            } catch (e) {
-              debugPrint('test alarm error: $e');
-            }
-          },
+            },
           ),
           ListTile(
             leading: const Icon(Icons.settings_voice_outlined),
@@ -185,7 +132,7 @@ onTap: () async {
           const Divider(),
 
           // ============ GOOGLE DRIVE ============
-          _section(context, 'Google Drive'),
+          const SettingsSectionHeader('Google Drive'),
           ListTile(
             leading: const Icon(Icons.cloud_outlined),
             title: const Text('Backup & Restore ke Drive'),
@@ -245,132 +192,15 @@ onTap: () async {
           const Divider(),
 
           // ============ BACKUP LOKAL ============
-          _section(context, 'Backup Lokal'),
-          ListTile(
-            leading: const Icon(Icons.key_outlined),
-            title: const Text('Passphrase Backup'),
-            subtitle: const Text(
-              'Kunci enkripsi file backup. Wajib untuk restore di perangkat lain.',
-            ),
-            onTap: () => _showPassphraseSheet(context),
-          ),
-          ListTile(
-            leading: const Icon(Icons.save_outlined),
-            title: const Text('Backup Data (ZIP)'),
-            subtitle: const Text(
-              'Simpan semua catatan + lampiran ke file terenkripsi',
-            ),
-            onTap: () async {
-              try {
-                final path = await BackupService().exportAll();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Backup: $path')),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Gagal backup: $e')),
-                  );
-                }
-              }
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.restore_outlined),
-            title: const Text('Restore dari File'),
-            subtitle: const Text('Import backup terenkripsi / ZIP / JSON'),
-            onTap: () async {
-              final result = await FilePicker.platform.pickFiles(
-                type: FileType.custom,
-                allowedExtensions: ['nbak', 'zip', 'json'],
-              );
-              if (result == null || result.files.single.path == null) return;
-              final path = result.files.single.path!;
-
-              // Minta passphrase bila file terenkripsi & passphrase lokal
-              // tidak cocok (mis. backup dari perangkat lain).
-              String? passphrase;
-              final stored = await BackupPassphraseService().passphrase();
-              if (stored == null || stored.isEmpty) {
-                passphrase = await _promptPassphrase(context);
-                if (passphrase == null) return;
-              }
-
-              try {
-                final count = await BackupService().importFromFile(
-                  path,
-                  merge: false,
-                  passphrase: passphrase,
-                );
-                if (context.mounted) {
-                  await context.read<NoteProvider>().load();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Restore: $count catatan')),
-                  );
-                }
-              } on BackupDecryptException catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(e.message)),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Gagal restore: $e')),
-                  );
-                }
-              }
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.auto_delete_outlined),
-            title: const Text('Bersihkan Sampah Lama'),
-            subtitle: const Text('Hapus item di sampah > 30 hari'),
-            onTap: () async {
-              final ok = await showDialog<bool>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Bersihkan Sampah?'),
-                  content:
-                      const Text('Hapus permanen catatan di sampah > 30 hari.'),
-                  actions: [
-                    TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('Batal')),
-                    TextButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text('Bersihkan')),
-                  ],
-                ),
-              );
-              if (ok == true && context.mounted) {
-                await context.read<NoteProvider>().purgeOldTrash(days: 30);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Sampah lama dibersihkan')),
-                  );
-                }
-              }
-            },
-          ),
+          const BackupSection(),
 
           const Divider(),
 
           // ============ KEAMANAN ============
-          _section(context, 'Keamanan'),
-          ListTile(
-            leading: const Icon(Icons.lock_outline),
-            title: const Text('Kunci Aplikasi'),
-            subtitle: const Text('PIN + fingerprint untuk catatan terkunci'),
-            onTap: () => _openLockSettings(context),
-          ),
-          const _FingerprintUnlockTile(),
+          const SecuritySection(),
 
           // ============ TENTANG ============
-          _section(context, 'Tentang'),
+          const SettingsSectionHeader('Tentang'),
           ListTile(
             leading: const Icon(Icons.info_outline),
             title: const Text('Catatanku'),
@@ -390,570 +220,6 @@ onTap: () async {
           const SizedBox(height: 24),
         ],
       ),
-    );
-  }
-
-  Future<void> _openLockSettings(BuildContext context) async {
-    final lock = LockService();
-    final enabled = await lock.isEnabled();
-    if (!context.mounted) return;
-
-    final canBio = enabled ? await lock.canUseBiometric() : false;
-    var fpEnabled = enabled ? await lock.isFingerprintEnabled() : false;
-    if (!context.mounted) return;
-
-    await showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) => AlertDialog(
-          title: Text(enabled ? 'Kunci Aplikasi' : 'Aktifkan Kunci?'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(enabled
-                  ? 'Fitur kunci aktif. Mau ubah atau matikan?'
-                  : 'Aktifkan PIN untuk mengunci catatan tertentu.'),
-              if (enabled && canBio) ...[
-                const SizedBox(height: 16),
-                const Divider(),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  secondary: const Icon(Icons.fingerprint),
-                  title: const Text('Fingerprint'),
-                  subtitle: Text(fpEnabled
-                      ? 'Aktif — verifikasi pakai sidik jari'
-                      : 'Nonaktif — pakai PIN saja'),
-                  value: fpEnabled,
-                  onChanged: (v) async {
-                    await lock.setFingerprint(v);
-                    setLocal(() => fpEnabled = v);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text(v
-                                ? 'Fingerprint diaktifkan'
-                                : 'Fingerprint dimatikan')),
-                      );
-                    }
-                  },
-                ),
-              ] else if (enabled && !canBio) ...[
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Icon(Icons.info_outline,
-                        size: 18, color: Colors.orange.shade300),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        'Fingerprint tidak tersedia di device ini',
-                        style: TextStyle(fontSize: 12, color: Colors.orange),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Batal'),
-            ),
-            if (enabled)
-              TextButton(
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  await _changePin(context);
-                },
-                child: const Text('Ubah PIN'),
-              ),
-            if (enabled)
-              TextButton(
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  await _disableLock(context);
-                },
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Matikan'),
-              ),
-            if (!enabled)
-              FilledButton(
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  await _setupPin(context);
-                },
-                child: const Text('Aktifkan'),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _setupPin(BuildContext context) async {
-    final pinCtrl = TextEditingController();
-    final hintCtrl = TextEditingController();
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Buat PIN'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: pinCtrl,
-              keyboardType: TextInputType.number,
-              obscureText: true,
-              maxLength: 6,
-              decoration: const InputDecoration(
-                labelText: 'PIN (4-6 digit)',
-                border: OutlineInputBorder(),
-                counterText: '',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: hintCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Hint (opsional)',
-                hintText: 'Contoh: angka favorit',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Simpan'),
-          ),
-        ],
-      ),
-    );
-    if (result != true) return;
-
-    final pin = pinCtrl.text.trim();
-    if (pin.length < 4 || pin.length > 6) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PIN harus 4-6 digit')),
-        );
-      }
-      return;
-    }
-    final code = await LockService().setPin(pin, hint: hintCtrl.text.trim());
-    if (context.mounted) {
-      await _showBackupCodeDialog(context, code);
-    }
-  }
-
-  Future<void> _changePin(BuildContext context) async {
-    final oldCtrl = TextEditingController();
-    final newCtrl = TextEditingController();
-    final hintCtrl = TextEditingController();
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Ubah PIN'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: oldCtrl,
-              keyboardType: TextInputType.number,
-              obscureText: true,
-              maxLength: 6,
-              decoration: const InputDecoration(
-                labelText: 'PIN Lama',
-                border: OutlineInputBorder(),
-                counterText: '',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: newCtrl,
-              keyboardType: TextInputType.number,
-              obscureText: true,
-              maxLength: 6,
-              decoration: const InputDecoration(
-                labelText: 'PIN Baru',
-                border: OutlineInputBorder(),
-                counterText: '',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: hintCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Hint (opsional)',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Simpan'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-
-    final lock = LockService();
-    final valid = await lock.verifyPin(oldCtrl.text.trim());
-    if (!valid) {
-      final remain = await lock.lockoutRemainingSeconds();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              remain > 0
-                  ? 'Terlalu banyak percobaan. Tunggu $remain detik.'
-                  : 'PIN lama salah',
-            ),
-          ),
-        );
-      }
-      return;
-    }
-    final newPin = newCtrl.text.trim();
-    if (newPin.length < 4 || newPin.length > 6) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PIN baru harus 4-6 digit')),
-        );
-      }
-      return;
-    }
-    final code = await lock.setPin(newPin, hint: hintCtrl.text.trim());
-    if (context.mounted) {
-      await _showBackupCodeDialog(context, code);
-    }
-  }
-
-  Future<void> _disableLock(BuildContext context) async {
-    final ctrl = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Matikan Kunci'),
-        content: TextField(
-          controller: ctrl,
-          keyboardType: TextInputType.number,
-          obscureText: true,
-          maxLength: 6,
-          decoration: const InputDecoration(
-            labelText: 'PIN',
-            border: OutlineInputBorder(),
-            counterText: '',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Matikan'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-
-    final lock = LockService();
-    final valid = await lock.verifyPin(ctrl.text.trim());
-    if (!valid) {
-      final remain = await lock.lockoutRemainingSeconds();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              remain > 0
-                  ? 'Terlalu banyak percobaan. Tunggu $remain detik.'
-                  : 'PIN salah',
-            ),
-          ),
-        );
-      }
-      return;
-    }
-    await LockService().disable();
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kunci dimatikan')),
-      );
-    }
-  }
-
-  Future<void> _showBackupCodeDialog(BuildContext context, String code) async {
-    await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Kode Backup'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Simpan kode ini di tempat aman:'),
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(ctx).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                code,
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 6,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Kode ini bisa dipakai kalau lupa PIN. Sekali pakai, PIN akan direset.',
-              style: TextStyle(fontSize: 12),
-            ),
-          ],
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK, sudah dicatat'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _section(BuildContext context, String text) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-        child: Text(
-          text.toUpperCase(),
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.2,
-            color: Neumo.textSub(context),
-          ),
-        ),
-      );
-
-  /// Dialog input passphrase. Return null kalau user batal.
-  Future<String?> _promptPassphrase(BuildContext context) async {
-    final controller = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Passphrase Backup'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          obscureText: true,
-          decoration: const InputDecoration(
-            labelText: 'Passphrase',
-            helperText: 'Passphrase yang dipakai saat membuat backup',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Lanjut'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-    if (result == null || result.isEmpty) return null;
-    return result;
-  }
-
-  /// Sheet untuk melihat / mengganti passphrase backup.
-  Future<void> _showPassphraseSheet(BuildContext context) async {
-    final service = BackupPassphraseService();
-    final current = await service.passphrase();
-
-    if (!context.mounted) return;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Passphrase Backup',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              if (current == null || current.isEmpty)
-                const Text(
-                  'Belum ada passphrase. Backup akan memakai passphrase acak '
-                  'yang otomatis dibuat.',
-                )
-              else
-                SelectableText(
-                  current,
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 16,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              const SizedBox(height: 8),
-              Text(
-                'Simpan passphrase ini di tempat aman. Backups yang terenkripsi '
-                'TIDAK bisa dipulihkan tanpa passphrase yang benar - termasuk '
-                'di perangkat lain.',
-                style: TextStyle(fontSize: 12, color: Neumo.textSub(ctx)),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final generated =
-                            BackupPassphraseService.generatePassphrase();
-                        await service.setPassphrase(generated);
-                        if (!ctx.mounted) return;
-                        Navigator.pop(ctx);
-                        _showPassphraseSheet(context);
-                      },
-                      icon: const Icon(Icons.autorenew, size: 18),
-                      label: const Text('Buat baru'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () async {
-                        final input = await _promptPassphrase(ctx);
-                        if (input == null) return;
-                        await service.setPassphrase(input);
-                        if (!ctx.mounted) return;
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Passphrase diperbarui')),
-                        );
-                      },
-                      icon: const Icon(Icons.check, size: 18),
-                      label: const Text('Set'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Toggle "Buka Catatan dengan Sidik Jari".
-/// Preferensi disimpan di SharedPreferences lewat [LockService].
-class _FingerprintUnlockTile extends StatefulWidget {
-  const _FingerprintUnlockTile();
-
-  @override
-  State<_FingerprintUnlockTile> createState() => _FingerprintUnlockTileState();
-}
-
-class _FingerprintUnlockTileState extends State<_FingerprintUnlockTile> {
-  bool _loading = true;
-  bool _pinEnabled = false;
-  bool _supported = false;
-  bool _enabled = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final lock = LockService();
-    final pinEnabled = await lock.isEnabled();
-    final supported = pinEnabled && await lock.canUseBiometric();
-    final enabled = pinEnabled && await lock.isFingerprintEnabled();
-    if (!mounted) return;
-    setState(() {
-      _pinEnabled = pinEnabled;
-      _supported = supported;
-      _enabled = enabled;
-      _loading = false;
-    });
-  }
-
-  Future<void> _toggle(bool value) async {
-    if (!_supported) {
-      // Refresh dulu — bisa jadi PIN baru saja diaktifkan dari dialog lain.
-      await _load();
-      if (!mounted) return;
-    }
-    if (!_supported) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _pinEnabled
-                ? 'Perangkat tidak mendukung sidik jari'
-                : 'Aktifkan Kunci Aplikasi (PIN) terlebih dahulu',
-          ),
-        ),
-      );
-      return;
-    }
-    await LockService().setFingerprint(value);
-    if (!mounted) return;
-    setState(() => _enabled = value);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final subtitle = _loading
-        ? 'Memeriksa...'
-        : !_pinEnabled
-            ? 'Aktifkan Kunci Aplikasi dulu'
-            : !_supported
-                ? 'Tidak tersedia di perangkat ini'
-                : (_enabled
-                    ? 'Aktif — buka catatan dengan sidik jari'
-                    : 'Nonaktif');
-
-    return SwitchListTile(
-      secondary: const Icon(Icons.fingerprint),
-      title: const Text('Buka Catatan dengan Sidik Jari'),
-      subtitle: Text(subtitle),
-      value: _enabled,
-      onChanged: _loading ? null : _toggle,
     );
   }
 }
