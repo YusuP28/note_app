@@ -72,14 +72,12 @@ class BackupSection extends StatelessWidget {
           leading: const Icon(Icons.restore_outlined),
           title: const Text('Restore dari File'),
           subtitle: const Text('Import backup terenkripsi / ZIP / JSON'),
-          onTap: () async {
+          // Ekstensi yang didukung: .nbak (backup terenkripsi baru),
+            // .zip (backup lama plaintext), .json (legacy)
             final result = await FilePicker.platform.pickFiles(
               type: FileType.custom,
               allowedExtensions: ['nbak', 'zip', 'json'],
             );
-            if (result == null || result.files.single.path == null) return;
-            final path = result.files.single.path!;
-            if (!context.mounted) return;
 
             // Minta passphrase bila file terenkripsi & passphrase lokal
             // tidak cocok (mis. backup dari perangkat lain).
