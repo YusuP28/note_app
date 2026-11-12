@@ -42,12 +42,23 @@ class BackupSection extends StatelessWidget {
           ),
           onTap: () async {
             try {
-              final path = await BackupService().exportAll();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Backup: $path')),
-                );
-              }
+              final bytes = await BackupService().exportAllBytes();
+              final fileName =
+                  'note_app_backup_${DateTime.now().millisecondsSinceEpoch}.zip';
+              // Storage Access Framework: user sendiri yang memilih lokasi
+              // file lewat system picker. Tidak butuh izin akses storage
+              // eksternal (MANAGE_EXTERNAL_STORAGE sudah dihapus).
+              final saved = await FilePicker.platform.saveFile(
+                dialogTitle: 'Simpan file backup',
+                fileName: fileName,
+                type: FileType.any,
+                bytes: bytes,
+              );
+              if (!context.mounted) return;
+              if (saved == null) return; // user membatalkan
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Backup tersimpan: $fileName')),
+              );
             } catch (e) {
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -64,7 +75,7 @@ class BackupSection extends StatelessWidget {
           onTap: () async {
             final result = await FilePicker.platform.pickFiles(
               type: FileType.custom,
-              allowedExtensions: ['nbak', 'zip', 'json'],
+              allowedExtensions: ['zip'],
             );
             if (result == null || result.files.single.path == null) return;
             final path = result.files.single.path!;
@@ -87,6 +98,7 @@ class BackupSection extends StatelessWidget {
                 passphrase: passphrase,
               );
               if (!context.mounted) return;
+
               await context.read<NoteProvider>().load();
               if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
@@ -99,44 +111,10 @@ class BackupSection extends StatelessWidget {
                 );
               }
             } catch (e) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Gagal restore: $e')),
-                );
-              }
-            }
-          },
-        ),
-        ListTile(
-          leading: const Icon(Icons.auto_delete_outlined),
-          title: const Text('Bersihkan Sampah Lama'),
-          subtitle: const Text('Hapus item di sampah > 30 hari'),
-          onTap: () async {
-            final ok = await showDialog<bool>(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                title: const Text('Bersihkan Sampah?'),
-                content:
-                    const Text('Hapus permanen catatan di sampah > 30 hari.'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text('Batal'),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, true),
-                    child: const Text('Bersihkan'),
-                  ),
-                ],
-              ),
-            );
-            if (ok == true && context.mounted) {
-              await context.read<NoteProvider>().purgeOldTrash(days: 30);
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Sampah lama dibersihkan')),
-                );
-              }
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Gagal restore: $e')),
+              );
             }
           },
         ),
@@ -144,121 +122,27 @@ class BackupSection extends StatelessWidget {
     );
   }
 
-  /// Dialog input passphrase. Return null kalau user batal.
-  Future<String?> _promptPassphrase(BuildContext context) async {
-    final controller = TextEditingController();
-    final result = await showDialog<String>(
+  /// Menampilkan dialog opsi restore: kembali ke file picker biasa atau lanjut ke manual.
+  Future<String?> _showRestoreOptionsDialog(BuildContext context) async {
+    return await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Passphrase Backup'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          obscureText: true,
-          decoration: const InputDecoration(
-            labelText: 'Passphrase',
-            helperText: 'Passphrase yang dipakai saat membuat backup',
-          ),
+        title: const Text('Pilih Cara Restore'),
+        content: const Text(
+          'File backup tidak ditemukan di path sebelumnya. Apakah Anda ingin memilih file secara manual?',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(ctx, null),
             child: const Text('Batal'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Lanjut'),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'manual'),
+            child: const Text('Pilih File Manual'),
           ),
         ],
       ),
-    );
-    controller.dispose();
-    if (result == null || result.isEmpty) return null;
-    return result;
-  }
-
-  /// Sheet untuk melihat / mengganti passphrase backup.
-  Future<void> _showPassphraseSheet(BuildContext context) async {
-    final service = BackupPassphraseService();
-    final current = await service.passphrase();
-
-    if (!context.mounted) return;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Passphrase Backup',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              if (current == null || current.isEmpty)
-                const Text(
-                  'Belum ada passphrase. Backup akan memakai passphrase acak '
-                  'yang otomatis dibuat.',
-                )
-              else
-                SelectableText(
-                  current,
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 16,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              const SizedBox(height: 8),
-              Text(
-                'Simpan passphrase ini di tempat aman. Backups yang terenkripsi '
-                'TIDAK bisa dipulihkan tanpa passphrase yang benar - termasuk '
-                'di perangkat lain.',
-                style: TextStyle(fontSize: 12, color: Neumo.textSub(ctx)),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final generated =
-                            BackupPassphraseService.generatePassphrase();
-                        await service.setPassphrase(generated);
-                        if (!ctx.mounted) return;
-                        Navigator.pop(ctx);
-                        _showPassphraseSheet(context);
-                      },
-                      icon: const Icon(Icons.autorenew, size: 18),
-                      label: const Text('Buat baru'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () async {
-                        final input = await _promptPassphrase(ctx);
-                        if (input == null) return;
-                        await service.setPassphrase(input);
-                        if (!ctx.mounted) return;
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Passphrase diperbarui')),
-                        );
-                      },
-                      icon: const Icon(Icons.check, size: 18),
-                      label: const Text('Set'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    ) ??
+        null;
   }
 }
