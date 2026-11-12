@@ -456,7 +456,7 @@ onTap: () async {
               obscureText: true,
               maxLength: 6,
               decoration: const InputDecoration(
-                labelText: 'PIN (4-6 digit)',
+                labelText: 'PIN (6 digit)',
                 border: OutlineInputBorder(),
                 counterText: '',
               ),
@@ -487,10 +487,10 @@ onTap: () async {
     if (result != true) return;
 
     final pin = pinCtrl.text.trim();
-    if (pin.length < 4 || pin.length > 6) {
+    if (pin.length != 6) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PIN harus 4-6 digit')),
+          const SnackBar(content: Text('PIN harus tepat 6 digit')),
         );
       }
       return;
@@ -578,7 +578,7 @@ onTap: () async {
       return;
     }
     final newPin = newCtrl.text.trim();
-    if (newPin.length < 4 || newPin.length > 6) {
+    if (newPin.length != 6) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('PIN baru harus 4-6 digit')),
