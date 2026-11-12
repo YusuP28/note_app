@@ -60,14 +60,14 @@ class GoogleDriveService {
       final account = await signIn.signIn();
       if (account != null) {
         _currentUser = account;
-        debugPrint('Google signIn OK: ${account.email}');
+        debugPrint('Google signIn OK');
         return account;
       }
       // Kadang user batal, coba silent dulu
       final silent = await signIn.signInSilently();
       if (silent != null) {
         _currentUser = silent;
-        debugPrint('Google signIn OK (silent fallback): ${silent.email}');
+        debugPrint('Google signIn OK (silent fallback)');
         return silent;
       }
       return null;
@@ -97,7 +97,7 @@ class GoogleDriveService {
       final account = await signIn.signInSilently();
       if (account != null) {
         _currentUser = account;
-        debugPrint('Google silent signIn OK: ${account.email}');
+        debugPrint('Google silent signIn OK');
       }
       return account;
     } catch (e) {

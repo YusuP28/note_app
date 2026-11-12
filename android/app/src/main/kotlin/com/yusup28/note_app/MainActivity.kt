@@ -15,6 +15,16 @@ class MainActivity : FlutterFragmentActivity() {
     private val CHANNEL = "note_app/alarm"
     private val GOOGLE_SIGN_IN_CHANNEL = "com.yusup28.note_app/google_sign_in"
 
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Cegah screenshot & pratinjau di Recent Apps supaya isi catatan
+        // tidak bocor lewat galeri screenshot atau task switcher.
+        window.setFlags(
+            android.view.WindowManager.LayoutParams.FLAG_SECURE,
+            android.view.WindowManager.LayoutParams.FLAG_SECURE
+        )
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 

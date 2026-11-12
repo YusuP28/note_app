@@ -7,6 +7,10 @@ build/
 .flutter-plugins
 .flutter-plugins-dependencies
 
+# Package inti (note_app_core) - artifact build
+packages/note_app_core/.dart_tool/
+packages/note_app_core/build/
+
 # ============================================
 # Android
 # ============================================
@@ -16,6 +20,8 @@ android/app/profile/
 android/app/release/
 android/key.properties
 android/app/google-services.json
+android/local.properties
+android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
 *.jks
 *.keystore
 
@@ -50,3 +56,6 @@ full_log.txt
 # Backup files (jangan commit)
 *.bak-*
 *.old.txt
+
+# Superpowers SDD workspace (ledger, briefs, review packages)
+.superpowers/

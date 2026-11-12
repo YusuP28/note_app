@@ -98,6 +98,15 @@ class NoteCard extends StatelessWidget {
                   ),
                   if (note.isLocked)
                     Icon(Icons.lock_outline, size: 14, color: scheme.primary),
+                  if (note.decryptFailed)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: Icon(
+                        Icons.warning_amber_rounded,
+                        size: 14,
+                        color: scheme.error,
+                      ),
+                    ),
                   if (selectionMode)
                     Padding(
                       padding: const EdgeInsets.only(left: 6),

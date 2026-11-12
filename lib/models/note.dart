@@ -1,5 +1,8 @@
-class Note {
+import 'package:note_app_core/note_app_core.dart';
+
+class Note implements NoteLike {
   final String id;
+  @override
   String title;
   String content; // sekarang = Quill Delta JSON
   String plainText; // text tanpa format (untuk search & preview)
@@ -15,7 +18,9 @@ class Note {
   String? bgImagePath;
   double bgOpacity; // 0.0 - 1.0
   int sortOrder;
+  @override
   final DateTime createdAt;
+  @override
   DateTime updatedAt;
   List<String> tagIds;
 
@@ -40,6 +45,17 @@ class Note {
     required this.updatedAt,
     this.tagIds = const [],
   });
+
+  /// True kalau isi catatan masih berupa ciphertext.
+  ///
+  /// Setelah [NoteContentCipher.decryptRow], isi yang gagal didekripsi tetap
+  /// ciphertext (bukan string kosong - lihat fix data loss). Keadaan ini
+  /// berarti kunci berubah atau datanya rusak, jadi user harus diberi tahu
+  /// dan isi tidak boleh diperlakukan sebagai "kosong lalu disimpan ulang".
+  bool get decryptFailed =>
+      isLocked &&
+      (NoteCipher.isEncryptedText(content) ||
+          NoteCipher.isEncryptedText(plainText));
 
   Map<String, dynamic> toMap() => {
         'id': id,

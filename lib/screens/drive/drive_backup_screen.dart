@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:note_app_core/note_app_core.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/note_provider.dart';
+import '../../services/backup_passphrase_service.dart';
 import '../../services/backup_service.dart';
 import '../../services/google_drive_service.dart';
 
@@ -68,8 +69,9 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
       final bytes = await BackupService().readBytes(path);
 
       setState(() => _status = 'Upload ke Drive...');
+      // File backup terenkripsi - ekstensi .nbak (bukan .zip).
       final fileName =
-          'note_app_backup_${DateTime.now().millisecondsSinceEpoch}.zip';
+          'note_app_backup_${DateTime.now().millisecondsSinceEpoch}.nbak';
       final id = await _drive.uploadBackup(
         fileName: fileName,
         bytes: bytes,
@@ -146,12 +148,28 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
         bytes,
         fileName: picked['name'] as String?,
       );
-      final count = await BackupService().importFromFile(tmpPath, merge: false);
+
+      // Backup dari perangkat lain butuh passphrase yang tidak tersimpan
+      // di perangkat ini - minta dari user.
+      String? passphrase;
+      final stored = await BackupPassphraseService().passphrase();
+      if (stored == null || stored.isEmpty) {
+        passphrase = await _promptPassphrase();
+        if (passphrase == null) return;
+      }
+
+      final count = await BackupService().importFromFile(
+        tmpPath,
+        merge: false,
+        passphrase: passphrase,
+      );
 
       if (mounted) {
         await context.read<NoteProvider>().load();
       }
       _show('Restore OK: $count catatan');
+    } on BackupDecryptException catch (e) {
+      _show(e.message);
     } catch (e) {
       _show('Restore gagal: $e');
     } finally {
@@ -161,6 +179,39 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
           _status = '';
         });
     }
+  }
+
+  /// Dialog input passphrase. Null kalau user batal.
+  Future<String?> _promptPassphrase() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Passphrase Backup'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          obscureText: true,
+          decoration: const InputDecoration(
+            labelText: 'Passphrase',
+            helperText: 'Passphrase yang dipakai saat membuat backup',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Lanjut'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (result == null || result.isEmpty) return null;
+    return result;
   }
 
   void _show(String msg) {

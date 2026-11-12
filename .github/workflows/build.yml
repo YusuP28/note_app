@@ -47,17 +47,19 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Generate google-services.json (untuk release)
-        if: steps.mode.outputs.mode != 'debug'
-        env:
-          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
-        run: |
-          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
-            echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
-            echo "[OK] google-services.json generated"
-          else
-            echo "[!] GOOGLE_SERVICES_JSON secret tidak diset — build release mungkin gagal"
-          fi
+      - name: Get dependencies (note_app_core)
+        working-directory: packages/note_app_core
+        run: dart pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test (app)
+        run: flutter test
+
+      - name: Test (note_app_core)
+        working-directory: packages/note_app_core
+        run: dart test
 
       - name: Determine build mode
         id: mode
@@ -68,6 +70,18 @@ jobs:
             echo "mode=release-split" >> $GITHUB_OUTPUT
           else
             echo "mode=debug" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate google-services.json (untuk release)
+        if: steps.mode.outputs.mode != 'debug'
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            echo "[OK] google-services.json generated"
+          else
+            echo "[!] GOOGLE_SERVICES_JSON secret tidak di-set — build release mungkin gagal"
           fi
 
       - name: Decode keystore (hanya release)

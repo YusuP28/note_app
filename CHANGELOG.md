@@ -9,13 +9,38 @@ Versioning: [Semantic Versioning](https://semver.org/)
 - **Fondasi lampiran media** — tabel `note_attachments`, model `Attachment`, dan `AttachmentService` (simpan/hapus/bersihkan orphan)
 - **Backup v3 (ZIP)** — `data.json` + folder `attachments/`, restore dengan urutan FK yang benar
 - **Versi aplikasi dinamis** via `package_info_plus`
+- **Enkripsi backup (AES-256-GCM)** — seluruh arsip backup terenkripsi, kunci diturunkan dari passphrase (PBKDF2 210.000 iterasi). Format file `.nbak`
+- **Enkripsi konten catatan terkunci** — kolom `content` + `plain_text` di SQLite dienkripsi, kunci disimpan di Android Keystore (flutter_secure_storage)
+- **Passphrase Backup** di Settings — lihat / buat / ganti passphrase; restore dari perangkat lain bisa input passphrase
+- **`packages/note_app_core`** — package pure-Dart berisi logika keamanan (BackupCrypto, BackupEnvelope, NoteCipher, MediaPathGuard, LockoutPolicy, PinPolicy, Pbkdf2) yang bisa diuji tanpa Flutter SDK
+- **Test suite** — 76 test app (`flutter test`) + 109 test core (`dart test`)
+- **CI quality gate** — `flutter analyze` + `flutter test` + `dart test` jalan sebelum build APK
+- **`network_security_config.xml`** — cleartext traffic dinonaktifkan
+- **`FLAG_SECURE`** — cegah screenshot & pratinjau Recent Apps
 
 ### Diubah
-- **Lokasi backup ZIP** dipindah ke folder publik `/sdcard/Download/note_app/` (folder dibuat otomatis; fallback ke folder aplikasi jika izin ditolak)
+- **Lokasi backup** — semua backup disimpan di folder privat aplikasi; ekspor manual memakai Storage Access Framework (system file picker) sehingga user sendiri yang memilih lokasi file
+- **Izin `MANAGE_EXTERNAL_STORAGE` dihapus** — beserta `requestLegacyExternalStorage`; tidak ada lagi akses storage eksternal dari aplikasi
+- **PIN baru wajib 6 digit** — PIN lama 4 digit milik user tetap bisa dipakai untuk membuka aplikasi; PIN baru yang terlalu mudah ditebak (`123456`, `111111`) ditolak. Aturan centralized di `PinPolicy`
+- **Backup code tunduk throttle** — sebelumnya tidak pernah mengecek lockout dan tidak menaikkan `_kFailCount` (bypass PIN via brute force)
+- **Backup code sekali pakai** — di-invalidasi setelah dipakai untuk reset PIN
+- **Build release wajib keystore** — tidak ada fallback ke debug key (build gagal dengan pesan jelas)
+- **`signInSilently()` tidak lagi dipanggil otomatis** saat app launch — koneksi ke Google hanya saat user memakai fitur Drive
 
 ### Diperbaiki
+- **Data loss saat dekripsi gagal** — isi catatan terkunci yang gagal didekripsi (kunci berubah / data rusak) dulu diganti string kosong, dan catatan yang tersimpan ulang menimpanya jadi kosong. Sekarang isi aslinya (ciphertext) tetap utuh, editor dibuka read-only + banner peringatan, dan catatan tidak bisa dibuka kuncinya sampai dekripsi berhasil
+- **Email user bocor ke logcat** — tiga titik log di `GoogleDriveService` (`signIn`, `signIn` fallback, `signInSilently`) tidak lagi menulis email
+- **Highlight pencarian tak terbaca di tema gelap** — teks di atas highlight kuning sekarang dipaksa hitam (sebelumnya warna teks ikut tema, putih di tema gelap)
+- **Highlight pada catatan terkunci** — konten didekripsi sebelum dokumen editor dibangun, jadi yang dirender dan disorot adalah isi catatan, bukan sandi
+- **Posisi highlight tidak lagi bergeser** — pencarian kata kunci kini dicocokkan per karakter tanpa memakai salinan lowercase, sehingga offset highlight tetap akurat (mis. teks berhuruf 'İ')
+- **Highlight hilang saat draft dipulihkan** — draft yang menggantikan isi dokumen kini memicu perhitungan ulang posisi highlight
+- **Path traversal saat restore** — path media dari file backup sekarang divalidasi (`p.isWithin`); nilai `../` dari file backup yang dikontrol penyerang ditolak
 - Urutan restore backup: notebook → tag → catatan → relasi tag → lampiran (sebelumnya catatan di-insert sebelum notebook)
 - Auto-backup, backup lokal, dan Google Drive sekarang menyertakan lampiran media
+- **Bug urutan step CI** — step `Determine build mode` dipindah ke atas agar kondisi `if:` pada step google-services/keystore benar-benar evaluates
+- Email user tidak lagi ditulis ke logcat saat auto-backup
+
+---
 
 ---
 

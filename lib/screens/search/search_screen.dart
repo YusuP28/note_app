@@ -19,11 +19,25 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final _ctrl = TextEditingController();
   Timer? _debounce;
+  NoteProvider? _provider;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _provider ??= context.read<NoteProvider>();
+  }
 
   @override
   void dispose() {
     _ctrl.dispose();
     _debounce?.cancel();
+    // Home harus kembali ke daftar normal setelah pencarian ditutup, supaya
+    // hasil pencarian tidak mencemari state global. `clearSearch` dipanggil
+    // lewat post-frame supaya tidak notifying listener saat widget dibuang.
+    final provider = _provider;
+    if (provider != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => provider.clearSearch());
+    }
     super.dispose();
   }
 

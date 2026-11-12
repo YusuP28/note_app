@@ -36,6 +36,11 @@ dependencies:
   skeletonizer: ^1.4.3
   permission_handler: ^11.3.1
   local_auth: ^2.3.0
+  flutter_secure_storage: ^9.2.4
+
+  # Logika inti pure-Dart (enkripsi backup, guard path, policy lockout)
+  note_app_core:
+    path: packages/note_app_core
 
   # Google Drive backup
   google_sign_in: ^6.2.1
@@ -50,6 +55,9 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^4.0.0
   flutter_launcher_icons: ^0.14.2
+  # Untuk mock platform di test (path_provider, plugin_platform_interface)
+  path_provider_platform_interface: ^2.1.2
+  plugin_platform_interface: ^2.1.8
 
 flutter:
   uses-material-design: true

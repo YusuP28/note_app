@@ -29,9 +29,10 @@ class AutoBackupService {
       return false;
     }
 
-    debugPrint('AutoBackup: mulai backup untuk ${user.email}');
+    // Jangan log email user (PII) ke logcat.
+    debugPrint('AutoBackup: mulai backup ke Google Drive');
     try {
-      // Export
+      // Export - payload sudah terenkripsi (BackupService._exportTo).
       final path = await BackupService().exportAll();
       final bytes = await BackupService().readBytes(path);
 

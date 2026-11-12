@@ -37,8 +37,7 @@ class LocalImageEmbedBuilder extends EmbedBuilder {
       );
     }
 
-    // Ambil ukuran layar untuk batasi gambar
-    final screenW = MediaQuery.of(context).size.width;
+    // Batas ukuran gambar
     final maxW = 90.0; // lebar maksimal
     final maxH = 90.0; // tinggi maksimal
 

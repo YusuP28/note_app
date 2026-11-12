@@ -8,14 +8,14 @@ import 'providers/notebook_provider.dart';
 import 'providers/tag_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/settings_provider.dart';
-import 'services/google_drive_service.dart';
 import 'screens/notes/home_screen.dart';
 import 'screens/alarm/alarm_page_screen.dart';
 import 'services/migration_service.dart';
 import 'services/backup_service.dart';
-import 'services/alarm_service.dart';
 import 'services/auto_backup_service.dart';
+import 'services/database_service.dart';
 import 'services/image_attachment_service.dart';
+import 'services/trash_purge_service.dart';
 import 'themes/app_theme.dart';
 import 'utils/locale_init.dart';
 import 'widgets/global_background.dart';
@@ -28,6 +28,35 @@ Future<void> main() async {
 
   await initLocale();
   await MigrationService().migrateIfNeeded();
+
+  // Aktifkan enkripsi konten catatan terkunci (kunci dari Android Keystore).
+  await DatabaseService().initContentCipher();
+
+  // Catatan yang dikunci SEBELUM fitur enkripsi aktif masih plaintext di
+  // SQLite (dan ikut ter-export ke backup). Enkripsi sekarang, sebelum
+  // auto-backup di bawah sempat menyalin baris tersebut.
+  await _encryptExistingLockedNotes();
+
+  // SATU instance NoteProvider untuk seluruh aplikasi: dipakai provider tree
+  // (lihat NoteApp) DAN auto-purge di bawah. Kalau purge memakai instance
+  // sendiri, terjadi load penuh kedua di startup + instance yatim yang
+  // tidak pernah di-dispose.
+  final noteProvider = NoteProvider();
+
+  // Auto-purge sampah lama (> 30 hari) - otomatis, bukan hanya tombol manual
+  // di Settings. Kegagalan tidak boleh menggagalkan start aplikasi.
+  //
+  // Urutan: purge dijalankan SEBELUM UI mount, memakai instance provider yang
+  // sama. `purgeOldTrash` memuat ulang daftar (load()) di akhir, jadi data
+  // yang tampil di UI sudah bebas dari sampah lama.
+  try {
+    await TrashPurgeService(
+      purge: (days) => noteProvider.purgeOldTrash(days: days),
+    ).runIfDue(days: 30);
+  } catch (e) {
+    debugPrint('auto-purge gagal: $e');
+  }
+
   await BackupService().autoBackup();
 
   // PRELOAD settings & theme — cegah race condition
@@ -36,15 +65,19 @@ Future<void> main() async {
   final theme = ThemeProvider();
   await theme.load();
 
-  // Siapkan auto-backup service — dijalankan setelah UI muncul
+  // Siapkan auto-backup service — dijalankan setelah UI muncul.
+  // Google Sign-In TIDAK dipanggil di sini: koneksi ke pihak ketiga hanya
+  // terjadi kalau user benar-benar mengaktifkan auto-backup ke Drive.
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     ImageAttachmentService().setUseOriginal(settings.useOriginalQuality);
-    final gd = GoogleDriveService();
-    await gd.signInSilently();
     await AutoBackupService().checkAndRun(settings);
   });
 
-  runApp(NoteApp(settings: settings, theme: theme));
+  runApp(NoteApp(
+    settings: settings,
+    theme: theme,
+    noteProvider: noteProvider,
+  ));
 }
 
 /// Request permission runtime: notifikasi (Android 13+) + alarm exact
@@ -63,11 +96,63 @@ Future<void> _requestPermissions() async {
   }
 }
 
+/// Enkripsi catatan terkunci lama yang dibuat sebelum fitur enkripsi aktif.
+///
+/// Idempoten: hanya menulis baris yang isinya benar-benar berubah, sehingga
+/// aman dipanggil di setiap start. Kegagalan tidak boleh menggagalkan app -
+/// catatan lama tetap terbaca sebagai plaintext (jalur fallback `NoteCipher`).
+Future<void> _encryptExistingLockedNotes() async {
+  try {
+    final dbService = DatabaseService();
+    final cipher = dbService.cipher;
+    if (!cipher.isEnabled) return;
+
+    final db = await dbService.database;
+    final rows = await db.query(
+      'notes',
+      columns: ['id', 'content', 'plain_text', 'is_locked'],
+      where: 'is_locked = 1',
+    );
+
+    var updated = 0;
+    for (final row in rows) {
+      final encrypted = cipher.encryptRow(row);
+      if (encrypted['content'] == row['content'] &&
+          encrypted['plain_text'] == row['plain_text']) {
+        continue;
+      }
+      await db.update(
+        'notes',
+        {
+          'content': encrypted['content'],
+          'plain_text': encrypted['plain_text'],
+        },
+        where: 'id = ?',
+        whereArgs: [row['id']],
+      );
+      updated++;
+    }
+    if (updated > 0) {
+      debugPrint('backfill enkripsi: $updated catatan terkunci dienkripsi');
+    }
+  } catch (e) {
+    debugPrint('backfill enkripsi gagal: $e');
+  }
+}
+
 class NoteApp extends StatelessWidget {
   final SettingsProvider settings;
   final ThemeProvider theme;
 
-  const NoteApp({super.key, required this.settings, required this.theme});
+  /// Instance NoteProvider yang dipakai bersama dengan auto-purge.
+  final NoteProvider noteProvider;
+
+  const NoteApp({
+    super.key,
+    required this.settings,
+    required this.theme,
+    required this.noteProvider,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +160,9 @@ class NoteApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider.value(value: theme),
         ChangeNotifierProvider.value(value: settings),
-        ChangeNotifierProvider(create: (_) => NoteProvider()),
+        // `.value` — instance yang sama dengan yang dipakai auto-purge,
+        // jadi tidak ada provider kedua yang melakukan load penuh sendiri.
+        ChangeNotifierProvider.value(value: noteProvider),
         ChangeNotifierProvider(create: (_) => NotebookProvider()),
         ChangeNotifierProvider(create: (_) => TagProvider()),
       ],

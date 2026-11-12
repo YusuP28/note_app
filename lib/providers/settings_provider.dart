@@ -1,14 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:note_app_core/note_app_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-enum SortBy {
-  updatedDesc,
-  updatedAsc,
-  createdDesc,
-  createdAsc,
-  titleAsc,
-  titleDesc,
-}
 
 enum ViewMode { list, grid }
 

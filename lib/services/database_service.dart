@@ -4,6 +4,8 @@ import 'package:sqflite/sqflite.dart';
 
 import '../models/attachment.dart';
 import '../models/note.dart';
+import 'local_key_service.dart';
+import 'note_content_cipher.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -13,6 +15,25 @@ class DatabaseService {
   static Database? _db;
   static const int _version = 3;
   static const String _dbName = 'note_app_v7.db';
+
+  NoteContentCipher _cipher = NoteContentCipher.disabled();
+
+  /// Cipher untuk konten catatan terkunci (di-set sekali saat app start).
+  NoteContentCipher get cipher => _cipher;
+
+  /// Aktifkan enkripsi konten terkunci.
+  ///
+  /// Kalau kunci tidak bisa diambil (mis. Keystore error), cipher tetap
+  /// disabled dan app tetap berjalan normal.
+  Future<void> initContentCipher() async {
+    try {
+      final key = await LocalKeyService().key();
+      _cipher = await NoteContentCipher.fromKey(key);
+    } catch (e) {
+      debugPrint('Content cipher init gagal (enkripsi nonaktif): $e');
+      _cipher = NoteContentCipher.disabled();
+    }
+  }
 
   Future<Database> get database async {
     if (_db != null) return _db!;
@@ -193,7 +214,7 @@ class DatabaseService {
       whereArgs: [id],
     );
     final tags = tagRows.map((e) => e['tag_id'] as String).toList();
-    return Note.fromMap(rows.first, tags: tags);
+    return Note.fromMap(_cipher.decryptRow(rows.first), tags: tags);
   }
 
   Future<List<Attachment>> getAttachmentsForNote(String noteId) async {

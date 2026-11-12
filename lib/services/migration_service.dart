@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
-import '../models/note.dart';
 import 'database_service.dart';
 
 class MigrationService {

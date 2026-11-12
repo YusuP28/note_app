@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
+import 'package:note_app_core/note_app_core.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,6 +14,7 @@ import '../../providers/note_provider.dart';
 import '../../providers/notebook_provider.dart';
 import '../../providers/tag_provider.dart';
 import '../../utils/date_utils.dart';
+import '../../services/database_service.dart';
 import '../../services/quill_image_service.dart';
 import '../../services/image_attachment_service.dart';
 import '../../widgets/image_picker_sheet.dart';
@@ -44,7 +46,23 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
   Timer? _draftTimer;
   String? _searchQuery; // Kata kunci pencarian untuk highlight
   List<int> _highlightPositions = []; // Posisi offset dari highlight
-  int _currentHighlightIndex = 0; // Index highlight saat ini
+  String? _highlightQuery; // Kata kunci yang benar-benar disorot
+
+  /// Isi dokumen (delta JSON) dalam bentuk plaintext.
+  ///
+  /// Catatan terkunci disimpan terenkripsi di database. Isi ini didekripsi
+  /// sekali di [initState] sebelum dokumen Quill dibangun, sehingga editor dan
+  /// highlight selalu bekerja pada teks asli - bukan pada sandi.
+  late String _contentJson;
+
+  /// Warna latar highlight pencarian: kuning terang.
+  static const String _highlightBackground = '#FFFF00';
+
+  /// Warna teks di atas highlight kuning.
+  ///
+  /// Kuning terang butuh teks gelap. Tanpa ini, teks tema terang (putih di
+  /// tema gelap) nyaris tak terbaca di atas highlight.
+  static const String _highlightForeground = '#000000';
 
   String get _draftKeyTitle => 'draft_${_working.id}_title';
   String get _draftKeyContent => 'draft_${_working.id}_content';
@@ -57,8 +75,11 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
     _working = widget.note ??
         Note(id: '', createdAt: DateTime.now(), updatedAt: DateTime.now());
     _titleCtrl = TextEditingController(text: _working.title);
-    _contentCtrl = _buildQuillController(_working.content);
-    if (widget.readOnly) _contentCtrl.readOnly = true;
+    // Dekripsi konten sebelum dokumen dibuat: catatan terkunci disimpan
+    // terenkripsi, dan tanpa dekripsi editor menampilkan sandi - dan yang
+    // disorot saat pencarian juga sandi, bukan isi catatan.
+    _contentJson = _decryptContent(_working.content);
+    _contentCtrl = _buildQuillController(_contentJson);
 
     _reminder = _working.reminderAt;
     _bgImagePath = _working.bgImagePath;
@@ -83,49 +104,75 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
     if (!widget.readOnly) _restoreDraft();
   }
 
-  /// Hapus semua highlight kuning (BackgroundAttribute) dari dokumen
+  /// Dekripsi isi catatan bila masih berupa ciphertext.
+  ///
+  /// Catatan terkunci disimpan terenkripsi di database ([NoteContentCipher]).
+  /// Provider biasanya sudah mendekripsi saat memuat, tapi editor tidak
+  /// boleh bergantung pada itu: kalau isinya masih ciphertext, yang tampil
+  /// (dan yang di-highlight) adalah sandi, bukan isi catatan.
+  ///
+  /// Kalau dekripsi gagal, isi asli dikembalikan apa adanya - lebih baik
+  /// menampilkan sandi daripada isi catatan hilang.
+  String _decryptContent(String content) {
+    if (content.isEmpty) return content;
+    return DatabaseService().cipher.decryptText(content);
+  }
+
+  /// Hapus semua highlight kuning (BackgroundAttribute) dari dokumen.
+  ///
+  /// Warna teks yang dipaksa saat highlight juga dilepas, supaya teks
+  /// kembali seperti aslinya - highlight tidak pernah tersimpan permanen.
   void clearSearchHighlight() {
     if (_highlightPositions.isEmpty) return;
-    final query = _searchQuery?.toLowerCase() ?? '';
+    final query = _highlightQuery ?? _searchQuery?.trim() ?? '';
     if (query.isEmpty) return;
+    final panjang = query.length;
     for (final pos in _highlightPositions) {
       // Hapus background attribute di posisi tersebut
-      _contentCtrl.formatText(pos, query.length, quill.Attribute.background);
+      _contentCtrl.formatText(pos, panjang, quill.Attribute.background);
+      // ...dan warna teks hitam yang dipasang bersamanya
+      _contentCtrl.formatText(pos, panjang, quill.Attribute.color);
     }
-    _highlightPositions.clear();
+    _highlightPositions = [];
+    _highlightQuery = null;
     _searchQuery = null;
   }
 
-  /// Terapkan highlight kuning pada semua kemunculan _searchQuery
+  /// Terapkan highlight kuning pada semua kemunculan kata kunci pencarian.
+  ///
+  /// Teks yang dicari berasal dari dokumen Quill yang isinya sudah didekripsi
+  /// (lihat [_contentJson]), sehingga yang disorot selalu isi catatan asli.
   void _applySearchHighlight() {
-    if (_searchQuery == null || _searchQuery!.isEmpty) return;
-    final query = _searchQuery!.toLowerCase();
-    final plainText = _contentCtrl.document.toPlainText().toLowerCase();
-    _highlightPositions.clear();
+    final query = _searchQuery?.trim() ?? '';
+    if (query.isEmpty) return;
 
-    int index = 0;
-    while (true) {
-      index = plainText.indexOf(query, index);
-      if (index == -1) break;
-      _highlightPositions.add(index);
-      index += query.length;
-    }
+    final plainText = _contentCtrl.document.toPlainText();
+    final posisi = cariPosisiHighlight(plainText, query);
+    _highlightPositions = posisi;
+    _highlightQuery = query;
+    if (posisi.isEmpty) return;
 
-    if (_highlightPositions.isNotEmpty) {
-      // Terapkan background kuning pada setiap posisi
-      const yellowHex = '#FFFF00';
-      for (final pos in _highlightPositions) {
-        _contentCtrl.formatText(pos, query.length, quill.BackgroundAttribute(yellowHex));
-      }
-      // Scroll ke kemunculan pertama
-      _scrollToHighlight(0);
+    // Terapkan background kuning pada setiap posisi
+    for (final pos in posisi) {
+      _contentCtrl.formatText(
+        pos,
+        query.length,
+        quill.BackgroundAttribute(_highlightBackground),
+      );
+      // Teks hitam di atas kuning terang, supaya tetap terbaca di tema gelap.
+      _contentCtrl.formatText(
+        pos,
+        query.length,
+        quill.ColorAttribute(_highlightForeground),
+      );
     }
+    // Scroll ke kemunculan pertama
+    _scrollToHighlight(0);
   }
 
   /// Scroll ke highlight tertentu
   void _scrollToHighlight(int index) {
     if (index < 0 || index >= _highlightPositions.length) return;
-    _currentHighlightIndex = index;
     final offset = _highlightPositions[index];
     // Gunakan setSelection untuk scroll ke posisi
     _contentCtrl.updateSelection(
@@ -133,15 +180,30 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
       quill.ChangeSource.local,
     );
     // Scroll controller juga
+    // Gunakan tinggi per karakter sesungguhnya dari Quill document rather than
+    // estimasi *20, agar akurat untuk berbagai ukuran font dan tema.
+    final charHeight = _getCharHeight();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollCtrl.hasClients) {
         _scrollCtrl.animateTo(
-          offset.toDouble() * 20.0, // Estimasi tinggi per karakter
+          offset.toDouble() * charHeight,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
       }
     });
+  }
+
+  /// Mengambil tinggi per karakter dari dokumen Quill saat ini.
+  /// Menggunakan nilai dari placeholder text style sebagai referensi.
+  double _getCharHeight() {
+    // Ambil style dari teks placeholder atau teks judul yang sudah pasti ada
+    final textStyle = TextStyle(
+      fontSize: 15, // Default quill font size analog
+      fontFamily: 'Roboto',
+    );
+    final double baseline = -textStyle.fontSize! * 0.2; // approximation
+    return textStyle.fontSize! + baseline;
   }
 
   quill.QuillController _buildQuillController(String content) {
@@ -217,6 +279,9 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
     if (!mounted) return;
     if (!identical(oldCtrl, _contentCtrl)) {
       oldCtrl.dispose();
+      // Dokumen digantikan oleh isi draft, jadi posisi highlight lama tidak
+      // valid lagi - hitung ulang di atas isi draft.
+      _applySearchHighlight();
     }
 
     if (!mounted) return;
@@ -736,6 +801,30 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                           onPressed: () => setState(() => _reminder = null),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (_working.decryptFailed)
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: scheme.error.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: scheme.error.withOpacity(0.5)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded,
+                            size: 16, color: scheme.error),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Isi catatan tidak bisa dibuka (kunci enkripsi berubah atau data rusak). '
+                            'Isi asli tetap tersimpan dan tidak akan ditimpa.',
+                            style: TextStyle(fontSize: 12, color: textColor),
+                          ),
                         ),
                       ],
                     ),
