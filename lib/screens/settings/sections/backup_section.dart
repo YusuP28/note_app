@@ -42,23 +42,12 @@ class BackupSection extends StatelessWidget {
           ),
           onTap: () async {
             try {
-              final bytes = await BackupService().exportAllBytes();
-              final fileName =
-                  'note_app_backup_${DateTime.now().millisecondsSinceEpoch}.nbak';
-              // Storage Access Framework: user sendiri yang memilih lokasi
-              // file lewat system picker. Tidak butuh izin akses storage
-              // eksternal (MANAGE_EXTERNAL_STORAGE sudah dihapus).
-              final saved = await FilePicker.platform.saveFile(
-                dialogTitle: 'Simpan file backup',
-                fileName: fileName,
-                type: FileType.any,
-                bytes: bytes,
-              );
-              if (!context.mounted) return;
-              if (saved == null) return; // user membatalkan
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Backup tersimpan: $fileName')),
-              );
+              final path = await BackupService().exportAll();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Backup: $path')),
+                );
+              }
             } catch (e) {
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -72,12 +61,14 @@ class BackupSection extends StatelessWidget {
           leading: const Icon(Icons.restore_outlined),
           title: const Text('Restore dari File'),
           subtitle: const Text('Import backup terenkripsi / ZIP / JSON'),
-          // Ekstensi yang didukung: .nbak (backup terenkripsi baru),
-            // .zip (backup lama plaintext), .json (legacy)
+          onTap: () async {
             final result = await FilePicker.platform.pickFiles(
               type: FileType.custom,
               allowedExtensions: ['nbak', 'zip', 'json'],
             );
+            if (result == null || result.files.single.path == null) return;
+            final path = result.files.single.path!;
+            if (!context.mounted) return;
 
             // Minta passphrase bila file terenkripsi & passphrase lokal
             // tidak cocok (mis. backup dari perangkat lain).
@@ -269,29 +260,5 @@ class BackupSection extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  /// Menampilkan dialog opsi restore: kembali ke file picker biasa atau lanjut ke manual.
-  Future<String?> _showRestoreOptionsDialog(BuildContext context) async {
-    return await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Pilih Cara Restore'),
-        content: const Text(
-          'File backup tidak ditemukan di path sebelumnya. Apakah Anda ingin memilih file secara manual?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, null),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, 'manual'),
-            child: const Text('Pilih File Manual'),
-          ),
-        ],
-      ),
-    ) ??
-        null;
   }
 }
