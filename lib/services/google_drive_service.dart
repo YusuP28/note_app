@@ -1,3 +1,4 @@
+import 'package:note_app/BuildConfig.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -17,6 +18,13 @@ class GoogleDriveService {
   
   Future<String> _getServerClientId() async {
     if (_serverClientId != null) return _serverClientId!;
+    // Prioritas 1: BuildConfig (dari local.properties)
+    final buildConfigId = BuildConfig.GOOGLE_SERVER_CLIENT_ID;
+    if (buildConfigId.isNotEmpty && buildConfigId != 'YOUR_SERVER_CLIENT_ID.apps.googleusercontent.com') {
+      _serverClientId = buildConfigId;
+      return _serverClientId!;
+    }
+    // Prioritas 2: Native (jika ada)
     try {
       final String clientId = await _channel.invokeMethod('getServerClientId');
       if (clientId.isNotEmpty && clientId != 'YOUR_SERVER_CLIENT_ID.apps.googleusercontent.com') {
@@ -26,7 +34,7 @@ class GoogleDriveService {
     } catch (e) {
       debugPrint('Gagal ambil serverClientId dari native: $e');
     }
-    // Fallback ke environment variable (untuk CI/testing)
+    // Fallback
     _serverClientId = const String.fromEnvironment(
       'GOOGLE_SERVER_CLIENT_ID',
       defaultValue: 'YOUR_SERVER_CLIENT_ID.apps.googleusercontent.com',
