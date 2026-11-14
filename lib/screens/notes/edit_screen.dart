@@ -38,6 +38,7 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
   bool _isNew = false;
   bool _saving = false;
   bool _dirty = false;
+  bool _isApplyingHighlight = false;
   DateTime? _reminder;
   String? _bgImagePath;
   double _bgOpacity = 0.3;
@@ -98,6 +99,7 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
 
   /// Terapkan highlight kuning pada semua kemunculan _searchQuery
   void _applySearchHighlight() {
+    _isApplyingHighlight = true;
     if (_searchQuery == null || _searchQuery!.isEmpty) return;
     final query = _searchQuery!.toLowerCase();
     final plainText = _contentCtrl.document.toPlainText().toLowerCase();
@@ -120,6 +122,7 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
       // Scroll ke kemunculan pertama
       _scrollToHighlight(0);
     }
+    _isApplyingHighlight = false;
   }
 
   /// Scroll ke highlight tertentu
@@ -233,6 +236,7 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
 
   void _onDraftChange() {
     if (widget.readOnly) return;
+    if (_isApplyingHighlight) return;
     _dirty = true;
     _draftTimer?.cancel();
     _draftTimer = Timer(const Duration(seconds: 3), _saveDraft);
