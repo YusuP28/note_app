@@ -813,6 +813,8 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
                           autoFocus: false,
                           expands: true,
                           embedBuilders: [LocalImageEmbedBuilder()],
+                          selectionColor: Colors.blue.withOpacity(0.3),
+                          cursorColor: Colors.blue,
                         ),
                       ),
                     ),
