@@ -764,8 +764,8 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
                   color: editorBg,
                   padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
                   child: quill.QuillSimpleToolbar(
-                    configurations: quill.QuillSimpleToolbarConfigurations(
-                      controller: _contentCtrl,
+                    controller: _contentCtrl,
+                    config: quill.QuillSimpleToolbarConfig(
                       multiRowsDisplay: false,
                       showUndo: true,
                       showRedo: true,
@@ -804,10 +804,10 @@ class _EditScreenState extends State<EditScreen> with WidgetsBindingObserver {
                         }
                       },
                       child: quill.QuillEditor.basic(
+                        controller: _contentCtrl,
                         focusNode: _focusNode,
                         scrollController: _scrollCtrl,
-                        configurations: quill.QuillEditorConfigurations(
-                          controller: _contentCtrl,
+                        config: quill.QuillEditorConfig(
                           placeholder: widget.readOnly ? '' : 'Tulis catatan di sini...',
                           padding: EdgeInsets.zero,
                           autoFocus: false,

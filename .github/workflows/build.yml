@@ -35,7 +35,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.5'
+          flutter-version: '3.50.1'
           channel: 'stable'
           cache: false
 
@@ -47,6 +47,18 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      # Harus sebelum step release-only: mereka membaca steps.mode.outputs.mode.
+      - name: Determine build mode
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${{ github.event.inputs.build_type }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "mode=release-split" >> $GITHUB_OUTPUT
+          else
+            echo "mode=debug" >> $GITHUB_OUTPUT
+          fi
+
       - name: Generate google-services.json (untuk release)
         if: steps.mode.outputs.mode != 'debug'
         env:
@@ -57,17 +69,6 @@ jobs:
             echo "[OK] google-services.json generated"
           else
             echo "[!] GOOGLE_SERVICES_JSON secret tidak diset — build release mungkin gagal"
-          fi
-
-      - name: Determine build mode
-        id: mode
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "mode=${{ github.event.inputs.build_type }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "mode=release-split" >> $GITHUB_OUTPUT
-          else
-            echo "mode=debug" >> $GITHUB_OUTPUT
           fi
 
       - name: Decode keystore (hanya release)
@@ -98,7 +99,8 @@ jobs:
           flutter build apk --release \
             --split-per-abi \
             --obfuscate \
-            --split-debug-info=build/debug-info
+            --split-debug-info=build/debug-info \
+            --dart-define=GOOGLE_SERVER_CLIENT_ID=${{ secrets.GOOGLE_SERVER_CLIENT_ID }}
 
       - name: Build APK (release full, universal)
         if: steps.mode.outputs.mode == 'release-full'
@@ -107,7 +109,8 @@ jobs:
         run: |
           flutter build apk --release \
             --obfuscate \
-            --split-debug-info=build/debug-info
+            --split-debug-info=build/debug-info \
+            --dart-define=GOOGLE_SERVER_CLIENT_ID=${{ secrets.GOOGLE_SERVER_CLIENT_ID }}
 
       - name: Upload Debug APK
         if: steps.mode.outputs.mode == 'debug'

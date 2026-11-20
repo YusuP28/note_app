@@ -97,7 +97,7 @@ class MainActivity : FlutterFragmentActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "getServerClientId" -> {
-                        // Ambil dari BuildConfig (diisi via build.gradle dari google-services.json/env)
+                        // Ambil dari BuildConfig (diisi via build.gradle.kts dari google-services.json/env)
                         val clientId = BuildConfig.GOOGLE_SERVER_CLIENT_ID
                         result.success(clientId)
                     }
