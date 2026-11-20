@@ -150,7 +150,7 @@ class BackupService {
             await encoder.addFile(
               entity,
               '$_attachmentsFolder/$relative',
-              ZipFileEncoder.STORE,
+              ZipFileEncoder.store,
             );
           }
         }
