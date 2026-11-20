@@ -23,7 +23,7 @@ dependencies:
 
   # File & share
   file_picker: ^13.3.1
-  share_plus: ^10.0.2
+  share_plus: ^13.3.1
   archive: ^4.0.7
   package_info_plus: ^10.2.2
 
