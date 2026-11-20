@@ -33,7 +33,7 @@ dependencies:
 
   # Security
   crypto: ^3.0.8
-  skeletonizer: ^1.4.3
+  skeletonizer: ^3.0.0
   permission_handler: ^11.4.0
   local_auth: ^3.0.2
 
