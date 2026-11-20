@@ -36,19 +36,19 @@ class GoogleDriveService {
     return _serverClientId!;
   }
 
-  GoogleSignIn? _googleSignIn;
-  
-  Future<GoogleSignIn> get _signInInstance async {
-    if (_googleSignIn != null) return _googleSignIn!;
-    final clientId = await _getServerClientId();
-    _googleSignIn = GoogleSignIn(
-      scopes: [
-        drive.DriveApi.driveAppdataScope,
-      ],
-      serverClientId: clientId,
-    );
-    return _googleSignIn!;
+  /// google_sign_in 7.x: [GoogleSignIn.instance] adalah singleton dan
+  /// `initialize()` wajib dipanggil tepat sekali sebelum method lain dipakai.
+  Future<void>? _initializeFuture;
+
+  Future<void> _ensureInitialized() {
+    return _initializeFuture ??= () async {
+      final clientId = await _getServerClientId();
+      await GoogleSignIn.instance.initialize(serverClientId: clientId);
+    }();
   }
+
+  /// Scope Drive yang diminta saat otorisasi client.
+  List<String> get _driveScopes => [drive.DriveApi.driveAppdataScope];
 
   GoogleSignInAccount? _currentUser;
   GoogleSignInAccount? get currentUser => _currentUser;
@@ -57,22 +57,25 @@ class GoogleDriveService {
   /// Login Google
   Future<GoogleSignInAccount?> signIn() async {
     try {
-      final signIn = await _signInInstance;
-      // Coba sign in
-      final account = await signIn.signIn();
-      if (account != null) {
+      await _ensureInitialized();
+      try {
+        final account = await GoogleSignIn.instance.authenticate(
+          scopeHint: _driveScopes,
+        );
         _currentUser = account;
         debugPrint('Google signIn OK: ${account.email}');
         return account;
+      } on GoogleSignInException catch (e) {
+        if (e.code != GoogleSignInExceptionCode.canceled) rethrow;
+        debugPrint('Google signIn dibatalkan pengguna, coba silent');
       }
-      // Kadang user batal, coba silent dulu
-      final silent = await signIn.signInSilently();
+      // v7: pembatalan oleh pengguna melempar exception, jadi fallback ke
+      // lightweight authentication di sini.
+      final silent = await _tryLightweightSignIn();
       if (silent != null) {
-        _currentUser = silent;
         debugPrint('Google signIn OK (silent fallback): ${silent.email}');
-        return silent;
       }
-      return null;
+      return silent;
     } catch (e, st) {
       debugPrint('Google signIn error: $e\n$st');
       rethrow;
@@ -82,10 +85,9 @@ class GoogleDriveService {
   /// Logout
   Future<void> signOut() async {
     try {
-      final signIn = await _signInInstance;
-      await signIn.signOut();
+      await _ensureInitialized();
+      await GoogleSignIn.instance.signOut();
       _currentUser = null;
-      _googleSignIn = null; // Reset untuk ambil clientId baru kalau berubah
       debugPrint('Google signOut OK');
     } catch (e) {
       debugPrint('Google signOut error: $e');
@@ -95,10 +97,9 @@ class GoogleDriveService {
   /// Auto login kalau sudah pernah
   Future<GoogleSignInAccount?> signInSilently() async {
     try {
-      final signIn = await _signInInstance;
-      final account = await signIn.signInSilently();
+      await _ensureInitialized();
+      final account = await _tryLightweightSignIn();
       if (account != null) {
-        _currentUser = account;
         debugPrint('Google silent signIn OK: ${account.email}');
       }
       return account;
@@ -108,15 +109,29 @@ class GoogleDriveService {
     }
   }
 
+  /// v7: `attemptLightweightAuthentication()` bisa mengembalikan `null`
+  /// (bukan Future) bila platform tidak mendukung silent sign-in.
+  Future<GoogleSignInAccount?> _tryLightweightSignIn() async {
+    final future = GoogleSignIn.instance.attemptLightweightAuthentication();
+    final account = future == null ? null : await future;
+    if (account != null) _currentUser = account;
+    return account;
+  }
+
   /// Auth client
   Future<drive.DriveApi> _getDriveApi() async {
     final account = _currentUser ?? await signIn();
     if (account == null) throw Exception('Belum login Google');
 
-    final auth = await account.authentication;
+    // v7: account.authentication hanya menyediakan idToken. Access token
+    // untuk scope Drive diambil lewat authorizationClient.
+    final authClient = account.authorizationClient;
+    var auth = await authClient.authorizationForScopes(_driveScopes);
+    auth ??= await authClient.authorizeScopes(_driveScopes);
+
     final client = _AuthenticatedClient(
       http.Client(),
-      auth.accessToken ?? '',
+      auth.accessToken,
     );
     return drive.DriveApi(client);
   }
