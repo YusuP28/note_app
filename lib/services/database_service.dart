@@ -155,11 +155,13 @@ class DatabaseService {
 
   Future<void> wipe() async {
     final db = await database;
-    await db.delete('note_tags');
-    await db.delete('note_attachments');
-    await db.delete('notes');
-    await db.delete('tags');
-    await db.delete('notebooks');
+    await db.transaction((txn) async {
+      await txn.delete('note_tags');
+      await txn.delete('note_attachments');
+      await txn.delete('notes');
+      await txn.delete('tags');
+      await txn.delete('notebooks');
+    });
   }
 
   Future<void> insertAttachment(Attachment attachment) async {

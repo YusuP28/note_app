@@ -63,9 +63,8 @@ class _DriveBackupScreenState extends State<DriveBackupScreen> {
       _status = 'Menyiapkan backup...';
     });
     try {
-      // Export semua data + lampiran
-      final path = await BackupService().exportAll();
-      final bytes = await BackupService().readBytes(path);
+      // Export semua data + lampiran ke memory (tanpa file di storage publik).
+      final bytes = await BackupService().exportToBytes();
 
       setState(() => _status = 'Upload ke Drive...');
       final fileName =

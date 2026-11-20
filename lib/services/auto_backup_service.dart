@@ -31,9 +31,8 @@ class AutoBackupService {
 
     debugPrint('AutoBackup: mulai backup untuk ${user.email}');
     try {
-      // Export
-      final path = await BackupService().exportAll();
-      final bytes = await BackupService().readBytes(path);
+      // Export ke memory (tidak meninggalkan ZIP di storage publik).
+      final bytes = await BackupService().exportToBytes();
 
       // Upload
       final fileName =

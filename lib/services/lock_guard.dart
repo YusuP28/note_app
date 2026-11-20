@@ -39,8 +39,8 @@ Future<bool> toggleNoteLock(BuildContext context, Note note) async {
         }
         return false;
       }
-      // ⚠️ Note masih locked tapi PIN disabled → tidak bisa dibuka
-      // Tampar ke _verifyIdentity untuk unlock (hanya gagal jika user input salah)
+      // PIN mati: hash dan backup code sudah dihapus, jadi tidak ada yang
+      // bisa diverifikasi. Buka kuncinya langsung di bawah.
     } else {
       if (!context.mounted) return false;
       final verified = await _verifyIdentity(

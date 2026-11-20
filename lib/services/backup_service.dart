@@ -31,6 +31,24 @@ class BackupService {
     return _exportTo(file.path);
   }
 
+  /// Ekspor untuk di-upload (Drive). File ZIP dibuat di temp dan dihapus
+  /// setelah dibaca, supaya tidak menumpuk salinan plaintext di storage publik.
+  Future<Uint8List> exportToBytes() async {
+    final temp = await getTemporaryDirectory();
+    final file = File(p.join(
+      temp.path,
+      'note_app_upload_${DateTime.now().millisecondsSinceEpoch}.zip',
+    ));
+    try {
+      await _exportTo(file.path);
+      return await file.readAsBytes();
+    } finally {
+      try {
+        if (await file.exists()) await file.delete();
+      } catch (_) {}
+    }
+  }
+
   /// Auto-backup harian. Simpan di folder khusus, rotasi max 7 file.
   Future<void> autoBackup() async {
     try {
@@ -162,10 +180,6 @@ class BackupService {
         await old.delete();
       } catch (_) {}
     }
-  }
-
-  Future<Uint8List> readBytes(String path) async {
-    return File(path).readAsBytes();
   }
 
   Future<String> writeTempBackup(Uint8List bytes, {String? fileName}) async {

@@ -50,14 +50,19 @@ class NoteProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final db = await _db.database;
-      final rows = await db.query('notes');
-      _notes = [];
-      for (final r in rows) {
-        final tagRows = await db.query('note_tags',
-            columns: ['tag_id'], where: 'note_id = ?', whereArgs: [r['id']]);
-        final tags = tagRows.map((e) => e['tag_id'] as String).toList();
-        _notes.add(Note.fromMap(r, tags: tags));
-      }
+      // Satu query, bukan satu query per catatan (pola yang sama dengan search()).
+      final rows = await db.rawQuery(
+        "SELECT n.*, "
+        "(SELECT GROUP_CONCAT(tag_id) FROM note_tags WHERE note_id = n.id) "
+        "AS tag_ids FROM notes n",
+      );
+      _notes = rows.map((r) {
+        final rawTags = r['tag_ids'] as String?;
+        final tags = rawTags == null || rawTags.isEmpty
+            ? const <String>[]
+            : rawTags.split(',');
+        return Note.fromMap(r, tags: tags);
+      }).toList();
       _applyFilter();
     } catch (e, st) {
       _error = 'Load gagal: $e';
@@ -322,6 +327,17 @@ class NoteProvider extends ChangeNotifier {
     final cutoff =
         DateTime.now().subtract(Duration(days: days)).millisecondsSinceEpoch;
     final db = await _db.database;
+    final stale = await db.query(
+      'notes',
+      columns: ['id', 'reminder_at'],
+      where: 'is_trashed = 1 AND trashed_at IS NOT NULL AND trashed_at < ?',
+      whereArgs: [cutoff],
+    );
+    for (final row in stale) {
+      if (row['reminder_at'] != null) {
+        await _alarm.cancel(row['id'] as String);
+      }
+    }
     await db.delete('notes',
         where: 'is_trashed = 1 AND trashed_at IS NOT NULL AND trashed_at < ?',
         whereArgs: [cutoff]);
