@@ -90,12 +90,12 @@ class SettingsScreen extends StatelessWidget {
               ],
               onChanged: (val) async {
                 if (val == 'custom') {
-                  final result = await FilePicker.platform.pickFiles(
+                  final files = await FilePicker.pickFiles(
                     type: FileType.audio,
                   );
-                  if (result != null && result.files.single.path != null) {
+                  if (files.isNotEmpty && files.first.path != null) {
                     await settings
-                        .setNotificationSound(result.files.single.path!);
+                        .setNotificationSound(files.first.path!);
                   }
                 } else if (val != null) {
                   await settings.setNotificationSound(val);
@@ -250,14 +250,14 @@ onTap: () async {
             title: const Text('Restore dari File'),
             subtitle: const Text('Import backup ZIP/JSON (replace)'),
             onTap: () async {
-              final result = await FilePicker.platform.pickFiles(
+              final files = await FilePicker.pickFiles(
                 type: FileType.custom,
                 allowedExtensions: ['zip', 'json'],
               );
-              if (result == null || result.files.single.path == null) return;
+              if (files.isEmpty || files.first.path == null) return;
               try {
                 final count = await BackupService()
-                    .importFromFile(result.files.single.path!, merge: false);
+                    .importFromFile(files.first.path!, merge: false);
                 if (context.mounted) {
                   await context.read<NoteProvider>().load();
                   ScaffoldMessenger.of(context).showSnackBar(
