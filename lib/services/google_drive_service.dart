@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
@@ -9,43 +8,11 @@ class GoogleDriveService {
   factory GoogleDriveService() => _i;
   GoogleDriveService._();
 
-  // serverClientId diambil dari BuildConfig Android (via google-services.json)
-  // Format: xxx.apps.googleusercontent.com
-  static const MethodChannel _channel = MethodChannel('com.yusup28.note_app/google_sign_in');
-  
-  String? _serverClientId;
-  
-  Future<String> _getServerClientId() async {
-    if (_serverClientId != null) return _serverClientId!;
-    // Prioritas 1: BuildConfig (dari local.properties)
-    // Prioritas 2: Native (jika ada)
-    try {
-      final String clientId = await _channel.invokeMethod('getServerClientId');
-      if (clientId.isNotEmpty && clientId != 'YOUR_SERVER_CLIENT_ID.apps.googleusercontent.com') {
-        _serverClientId = clientId;
-        return _serverClientId!;
-      }
-    } catch (e) {
-      debugPrint('Gagal ambil serverClientId dari native: $e');
-    }
-    // Fallback
-    _serverClientId = const String.fromEnvironment(
-      'GOOGLE_SERVER_CLIENT_ID',
-      defaultValue: '562065299584-mun5gi44gcum65mcklgkmqgmhtfpv6hd.apps.googleusercontent.com',
-    );
-    return _serverClientId!;
-  }
-
-  /// google_sign_in 7.x: [GoogleSignIn.instance] adalah singleton dan
-  /// `initialize()` wajib dipanggil tepat sekali sebelum method lain dipakai.
-  Future<void>? _initializeFuture;
-
-  Future<void> _ensureInitialized() {
-    return _initializeFuture ??= () async {
-      final clientId = await _getServerClientId();
-      await GoogleSignIn.instance.initialize(serverClientId: clientId);
-    }();
-  }
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: [
+      drive.DriveApi.driveAppdataScope, // appDataFolder (tersembunyi)
+    ],
+  );
 
   /// Scope Drive yang diminta saat otorisasi client.
   List<String> get _driveScopes => [drive.DriveApi.driveAppdataScope];
@@ -57,25 +24,21 @@ class GoogleDriveService {
   /// Login Google
   Future<GoogleSignInAccount?> signIn() async {
     try {
-      await _ensureInitialized();
-      try {
-        final account = await GoogleSignIn.instance.authenticate(
-          scopeHint: _driveScopes,
-        );
+      // Coba sign in
+      final account = await _googleSignIn.signIn();
+      if (account != null) {
         _currentUser = account;
         debugPrint('Google signIn OK: ${account.email}');
         return account;
-      } on GoogleSignInException catch (e) {
-        if (e.code != GoogleSignInExceptionCode.canceled) rethrow;
-        debugPrint('Google signIn dibatalkan pengguna, coba silent');
       }
-      // v7: pembatalan oleh pengguna melempar exception, jadi fallback ke
-      // lightweight authentication di sini.
-      final silent = await _tryLightweightSignIn();
+      // Kadang user batal, coba silent dulu
+      final silent = await _googleSignIn.signInSilently();
       if (silent != null) {
+        _currentUser = silent;
         debugPrint('Google signIn OK (silent fallback): ${silent.email}');
+        return silent;
       }
-      return silent;
+      return null;
     } catch (e, st) {
       debugPrint('Google signIn error: $e\n$st');
       rethrow;
@@ -85,8 +48,7 @@ class GoogleDriveService {
   /// Logout
   Future<void> signOut() async {
     try {
-      await _ensureInitialized();
-      await GoogleSignIn.instance.signOut();
+      await _googleSignIn.signOut();
       _currentUser = null;
       debugPrint('Google signOut OK');
     } catch (e) {
@@ -97,9 +59,9 @@ class GoogleDriveService {
   /// Auto login kalau sudah pernah
   Future<GoogleSignInAccount?> signInSilently() async {
     try {
-      await _ensureInitialized();
-      final account = await _tryLightweightSignIn();
+      final account = await _googleSignIn.signInSilently();
       if (account != null) {
+        _currentUser = account;
         debugPrint('Google silent signIn OK: ${account.email}');
       }
       return account;
@@ -109,29 +71,16 @@ class GoogleDriveService {
     }
   }
 
-  /// v7: `attemptLightweightAuthentication()` bisa mengembalikan `null`
-  /// (bukan Future) bila platform tidak mendukung silent sign-in.
-  Future<GoogleSignInAccount?> _tryLightweightSignIn() async {
-    final future = GoogleSignIn.instance.attemptLightweightAuthentication();
-    final account = future == null ? null : await future;
-    if (account != null) _currentUser = account;
-    return account;
-  }
-
   /// Auth client
   Future<drive.DriveApi> _getDriveApi() async {
     final account = _currentUser ?? await signIn();
     if (account == null) throw Exception('Belum login Google');
 
-    // v7: account.authentication hanya menyediakan idToken. Access token
-    // untuk scope Drive diambil lewat authorizationClient.
-    final authClient = account.authorizationClient;
-    var auth = await authClient.authorizationForScopes(_driveScopes);
-    auth ??= await authClient.authorizeScopes(_driveScopes);
+    final auth = await account.authentication;
 
     final client = _AuthenticatedClient(
       http.Client(),
-      auth.accessToken,
+      auth.accessToken ?? '',
     );
     return drive.DriveApi(client);
   }
@@ -148,6 +97,7 @@ class GoogleDriveService {
       final list = await api.files.list(
         spaces: 'appDataFolder',
         q: "name='$fileName'",
+        $fields: 'files(id, name)',
       );
 
       final media = drive.Media(
@@ -187,6 +137,7 @@ class GoogleDriveService {
       final list = await api.files.list(
         spaces: 'appDataFolder',
         q: "name='$fileName'",
+        $fields: 'files(id, name, modifiedTime)',
       );
 
       if (list.files == null || list.files!.isEmpty) {
@@ -221,6 +172,7 @@ class GoogleDriveService {
         spaces: 'appDataFolder',
         q: "name contains 'note_app_backup_'",
         orderBy: 'createdTime desc',
+        $fields: 'files(id, name, createdTime)',
       );
 
       final files = list.files ?? [];
@@ -255,6 +207,7 @@ class GoogleDriveService {
       final api = await _getDriveApi();
       final list = await api.files.list(
         spaces: 'appDataFolder',
+        $fields: 'files(id, name, modifiedTime, size)',
       );
       return (list.files ?? [])
           .map((f) => {

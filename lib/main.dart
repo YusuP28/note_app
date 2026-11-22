@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
@@ -26,11 +25,6 @@ Future<void> main() async {
 
   // Request POST_NOTIFICATIONS (Android 13+) + SCHEDULE_EXACT_ALARM
   await _requestPermissions();
-
-  // Inisialisasi Google Sign-In v7 SEBELUM runApp (fix ApiException: 10)
-  await GoogleSignIn.instance.initialize(
-    serverClientId: '562065299584-mun5gi44gcum65mcklgkmqgmhtfpv6hd.apps.googleusercontent.com',
-  );
 
   await initLocale();
   await MigrationService().migrateIfNeeded();
