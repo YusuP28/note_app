@@ -38,7 +38,7 @@ dependencies:
   local_auth: ^3.0.2
 
   # Google Drive backup
-  google_sign_in: ^7.2.0
+  google_sign_in: 7.2.7
   googleapis: ^17.0.0
   googleapis_auth: ^1.6.0
   http: ^1.2.2
