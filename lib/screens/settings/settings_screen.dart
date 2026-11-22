@@ -7,10 +7,10 @@ import '../../providers/theme_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/note_provider.dart';
 import '../../services/backup_service.dart';
+import '../../services/local_backup_service.dart';
 import '../../services/alarm_service.dart';
 import '../../services/image_attachment_service.dart';
 import '../../services/lock_service.dart';
-import '../drive/drive_backup_screen.dart';
 import '../../themes/neumo.dart';
 import '../../utils/app_routes.dart';
 import '../../widgets/image_picker_sheet.dart';
@@ -161,53 +161,6 @@ onTap: () async {
           ),
 
           const Divider(),
-
-          // ============ GOOGLE DRIVE ============
-          _section(context, 'Google Drive'),
-          ListTile(
-            leading: const Icon(Icons.cloud_outlined),
-            title: const Text('Backup & Restore ke Drive'),
-            subtitle: const Text('Login Google + upload/download backup'),
-            onTap: () => Navigator.push(
-              context,
-              globalBackgroundRoute((_) => const DriveBackupScreen()),
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.schedule),
-            title: const Text('Auto-Backup Otomatis'),
-            subtitle: Text(
-              settings.autoBackupEnabled
-                  ? 'Setiap ${settings.autoBackupDays} hari sekali'
-                  : 'Nonaktif',
-            ),
-            trailing: DropdownButton<int>(
-              value: settings.autoBackupDays,
-              items: const [
-                DropdownMenuItem(value: 0, child: Text('Off')),
-                DropdownMenuItem(value: 1, child: Text('1 hari')),
-                DropdownMenuItem(value: 2, child: Text('2 hari')),
-                DropdownMenuItem(value: 3, child: Text('3 hari')),
-                DropdownMenuItem(value: 4, child: Text('4 hari')),
-                DropdownMenuItem(value: 5, child: Text('5 hari')),
-                DropdownMenuItem(value: 6, child: Text('6 hari')),
-                DropdownMenuItem(value: 7, child: Text('7 hari')),
-              ],
-              onChanged: (val) async {
-                if (val != null) await settings.setAutoBackupDays(val);
-              },
-            ),
-          ),
-          if (settings.autoBackupEnabled)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Text(
-                settings.lastAutoBackup == null
-                    ? 'Belum pernah backup otomatis'
-                    : 'Terakhir: ${settings.lastAutoBackup}',
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
-              ),
-            ),
           SwitchListTile(
             secondary: const Icon(Icons.high_quality_outlined),
             title: const Text('Ukuran Foto Asli'),
@@ -226,11 +179,11 @@ onTap: () async {
           _section(context, 'Backup Lokal'),
           ListTile(
             leading: const Icon(Icons.save_outlined),
-            title: const Text('Backup Data (ZIP)'),
-            subtitle: const Text('Simpan semua catatan + lampiran ke file ZIP'),
+            title: const Text('Backup ke Penyimpanan Internal'),
+            subtitle: const Text('Simpan semua catatan + lampiran ke folder note_app'),
             onTap: () async {
               try {
-                final path = await BackupService().exportAll();
+                final path = await LocalBackupService().backupData();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Backup: $path')),
@@ -247,21 +200,52 @@ onTap: () async {
           ),
           ListTile(
             leading: const Icon(Icons.restore_outlined),
-            title: const Text('Restore dari File'),
-            subtitle: const Text('Import backup ZIP/JSON (replace)'),
+            title: const Text('Restore dari Penyimpanan Internal'),
+            subtitle: const Text('Pilih file backup dari folder note_app'),
             onTap: () async {
-              final files = await FilePicker.pickFiles(
-                type: FileType.custom,
-                allowedExtensions: ['zip', 'json'],
+              final backupService = LocalBackupService();
+              final backups = await backupService.listBackups();
+              if (backups.isEmpty) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Belum ada backup di folder note_app')),
+                  );
+                }
+                return;
+              }
+              final picked = await showModalBottomSheet<File>(
+                context: context,
+                builder: (ctx) => SafeArea(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text('Pilih Backup',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      ),
+                      const Divider(height: 1),
+                      ...backups.map((file) => ListTile(
+                            leading: const Icon(Icons.file_present_outlined),
+                            title: Text(file.path.split('/').last,
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                            subtitle: Text(
+                                'Ukuran: ${(await file.length() / 1024).toStringAsFixed(1)} KB',
+                                style: const TextStyle(fontSize: 11)),
+                            onTap: () => Navigator.pop(ctx, file),
+                          )),
+                    ],
+                  ),
+                ),
               );
-              if (files.isEmpty || files.first.path == null) return;
+              if (picked == null) return;
+              
               try {
-                final count = await BackupService()
-                    .importFromFile(files.first.path!, merge: false);
+                final count = await backupService.restoreData(picked);
                 if (context.mounted) {
                   await context.read<NoteProvider>().load();
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Restore: $count catatan')),
+                    SnackBar(content: Text('Restore OK: $count catatan')),
                   );
                 }
               } catch (e) {
@@ -270,6 +254,19 @@ onTap: () async {
                     SnackBar(content: Text('Gagal restore: $e')),
                   );
                 }
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.folder_outlined),
+            title: const Text('Buka Folder Backup'),
+            subtitle: const Text('Lihat lokasi folder note_app di penyimpanan'),
+            onTap: () async {
+              final path = await LocalBackupService().getBackupFolderPath();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Folder: $path')),
+                );
               }
             },
           ),
