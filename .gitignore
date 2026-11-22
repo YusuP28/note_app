@@ -50,3 +50,6 @@ full_log.txt
 # Backup files (jangan commit)
 *.bak-*
 *.old.txt
+graphify-out/
+android/local.properties
+android/app/src/main/java/
