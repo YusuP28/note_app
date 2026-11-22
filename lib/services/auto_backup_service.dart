@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../providers/settings_provider.dart';
 import 'backup_service.dart';
-import 'local_backup_service.dart';
+import 'google_drive_service.dart';
 
 class AutoBackupService {
   static final AutoBackupService _i = AutoBackupService._();
@@ -20,25 +20,29 @@ class AutoBackupService {
       return false;
     }
 
-    debugPrint('AutoBackup: mulai backup lokal');
+    // Cek login Google
+    final drive = GoogleDriveService();
+    var user = drive.currentUser;
+    user ??= await drive.signInSilently();
+    if (user == null) {
+      debugPrint('AutoBackup: belum login Google');
+      return false;
+    }
+
+    debugPrint('AutoBackup: mulai backup untuk ${user.email}');
     try {
       // Export ke memory (tidak meninggalkan ZIP di storage publik).
       final bytes = await BackupService().exportToBytes();
 
-      // Simpan ke folder lokal
-      final localBackup = LocalBackupService();
+      // Upload
       final fileName =
           'note_app_backup_${DateTime.now().millisecondsSinceEpoch}.zip';
-      final backupDir = await localBackup._getBackupDirectory();
-      final target = File('${backupDir.path}/$fileName');
-      await target.writeAsBytes(bytes, flush: true);
-      
-      // Cleanup old backups
-      await localBackup.cleanupOldBackups(keepLast: 5);
+      await drive.uploadBackup(fileName: fileName, bytes: bytes);
+      await drive.cleanupOldBackups(keepLast: 5);
 
       // Update timestamp
       await settings.setLastAutoBackup(DateTime.now());
-      debugPrint('AutoBackup: SUCCESS — ${target.path}');
+      debugPrint('AutoBackup: SUCCESS');
       return true;
     } catch (e) {
       debugPrint('AutoBackup: FAILED — $e');

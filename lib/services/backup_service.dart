@@ -31,7 +31,7 @@ class BackupService {
     return _exportTo(file.path);
   }
 
-  /// Ekspor untuk upload/backup. File ZIP dibuat di temp dan dihapus
+  /// Ekspor untuk di-upload (Drive). File ZIP dibuat di temp dan dihapus
   /// setelah dibaca, supaya tidak menumpuk salinan plaintext di storage publik.
   Future<Uint8List> exportToBytes() async {
     final temp = await getTemporaryDirectory();
