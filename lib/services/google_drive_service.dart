@@ -31,7 +31,7 @@ class GoogleDriveService {
     // Fallback
     _serverClientId = const String.fromEnvironment(
       'GOOGLE_SERVER_CLIENT_ID',
-      defaultValue: '562065299584-u7o0k643oirgf25ehgf9i0p2tvgnd41.apps.googleusercontent.com',
+      defaultValue: '562065299584-mun5gi44gcum65mcklgkmqgmhtfpv6hd.apps.googleusercontent.com',
     );
     return _serverClientId!;
   }
