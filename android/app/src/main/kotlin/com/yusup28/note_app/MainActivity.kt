@@ -97,8 +97,8 @@ class MainActivity : FlutterFragmentActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "getServerClientId" -> {
-                        // Ambil dari BuildConfig (diisi via build.gradle.kts dari google-services.json/env)
-                        val clientId = BuildConfig.GOOGLE_SERVER_CLIENT_ID
+                        // Hardcoded fallback Client ID (Web Client ID dari Google Cloud Console)
+                        val clientId = "562065299584-mun5gi44gcum65mcklgkmqgmhtfpv6hd.apps.googleusercontent.com"
                         result.success(clientId)
                     }
                     else -> result.notImplemented()
